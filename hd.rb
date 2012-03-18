@@ -1,27 +1,28 @@
-#! /usr/bin/ruby
-
 #  ========== 
 #  = HD     = 
 #  ========== 
 # A module for measuring harmonic distance
-
+# test.
+require 'rational'
 module HD
   require 'set'
+  require 'rational'
   PRIMES = [2,3,5,7,11,13,17,19,23]
   
   # Holds the configuration parameters for the various HD measurement functions
   # Settings that are possible as of now: a custom list of prime number weights, 
   # and a custom filename from which to read in a list of tuneable intervals.
   class HDConfig
-    attr_accessor :prime_weights, :tuneable
-    def initialize(prime_weights = PRIMES.dup, tuneable = "tuneable.txt")
+    attr_accessor :prime_weights, :tuneable, :options
+    def initialize(prime_weights = PRIMES.dup, options = {:pc_only => false, :tuneable => "tuneable.txt"})
       warn "WARNING: Prime weights and list of primes are not the same size!" if prime_weights.size != PRIMES.size
       @prime_weights = prime_weights
+      @options = options
       
       pattern = /(\d+)\/(\d+)/
-      @tuneable = SortedSet.new
+      @tuneable = []
       # Reads in the entire list of tuneable intervals from a file
-      File.open(tuneable, "r") do |intervals|
+      File.open(options[:tuneable], "r") do |intervals|
         intervals.readlines.each do |line|
           if (pattern =~ line) != nil
             full = Regexp.last_match
@@ -33,15 +34,18 @@ module HD
   end # HDConfig (class)
   
   # Ratio class, which defines a point in harmonic space.
+  # TODO: Figure out how to make this a subclass to Rational
   class Ratio
     include Enumerable
-    
+    require 'rational'
     attr_accessor :num, :den
     
     # Default value is 1/1. This make it easier to provide an origin of 1/1 for any distance function.
     def initialize(num = 1, den = 1)
-      @num = num
-      @den = den
+      # The use of rational makes sure that the Ratio is always in reduced form
+      r = Rational(num, den)
+      @num = r.numerator
+      @den = r.denominator
     end
     
     # Predicate: returns whether or not the Ratio satisfies all conditions
@@ -53,9 +57,40 @@ module HD
       true
     end
     
+    def dec
+      return @num.to_f / @den
+    end
+    
+    def pc_space
+      while self.dec >= 2.0
+        @den *= 2
+      end
+      while self.dec < 1.0
+        @num *= 2
+      end
+      
+      r = Rational(@num, @den)
+      @num = r.numerator
+      @den = r.denominator
+    end
+    
+    def * r
+      if !r.is_a? Ratio
+        raise ArgumentError "Supplied class #{r.class} to HD::Ratio.*"
+      end
+      Ratio.new(r.num * self.num, r.den * self.den)
+    end
+    
+    def ** i
+      if !i.is_a? Object
+        raise ArgumentError "Supplied class #{i.class} to HD::Ratio.**"
+      end
+      Ratio.new(@num ** i, @den ** i)
+    end
+    
     # Necesssary to test for sets and subsets
-    def eql? other
-      @num == other.num && @den == other.den
+    def eql? r
+      @num == r.num && @den == r.den
     end
     
     # Defines the hash to properly test for equality
@@ -127,11 +162,23 @@ module HD
       return self.num.to_f / self.den <=> other.num.to_f / other.den
     end
     
+    def < other
+      return self.num.to_f / self.den < other.num.to_f / other.den
+    end
+    
+    def > other
+      return self.num.to_f / self.den > other.num.to_f / other.den
+    end
+    
     def to_s
-      return "#{@num} / #{@den}"
+      return "#{@num}/#{@den}"
     end
   end # Ratio (Class)
   
+  # The chord is essentially just a sorted set that translates some of the basic
+  # functions so that they'll work with the Ratio objects. It also will calculate
+  # the total distance between all possible points (combinatorial summation) and 
+  # can return a set of all possible pairs.
   class Chord < SortedSet
 
     # Iterate through and create a set of pairs, not counting pairs of the same chord
@@ -149,28 +196,177 @@ module HD
     # sum of the combinatorial distance of all members of the chord.
     # the distance between each possible pair is computed, and that
     # amount is summed to compute the total distance
-    def total_distance
+    def hd_sum(config = HD::HDConfig.new)
       total = 0
       all_pairs = []
-      self.pairs {|x,y| all_pairs << [x,y]}
-      all_pairs.each {|x| total += x[0].distance(x[1])}
+      self.pairs.each {|x,y| all_pairs << [x,y]}
+      all_pairs.each {|x| total += x[0].distance(x[1], config)}
       total
     end
+    
+    # See "Crystal Growth in Harmonic Space," by James Tenney
+    # as well as the tables and refinements suggested by
+    # Marc Sabat & Wolfgang von Schweinitz (plainsound.org)
+    #
+    # Finds the point which is the least possible harmonic distance
+    # from all other points, while not being a member of the chord
+    # itself. Should have the smallest possible return of 
+    # total_distance when added to the chord.
+    #
+    # 1. Look through all tuneable intervals for each member
+    # 2. Add each one to the chord, and evaluate total_distance
+    # 3. Pick the interval with the least total_distance
+    def logical_origin(config = HDConfig.new)
+      least_harmonic_distance = {:distance => nil, :ratio => nil}
+      self.each do |m|
+        config.tuneable.each do |i|
+          if self.member? m * i
+            next
+          end
+          if (m * i) > Ratio.new(9,2) || (m * i) < Ratio.new(4,9)
+            next
+          end
+          c = self.dup
+          c << m * i
+          if (least_harmonic_distance[:ratio] == nil)
+            least_harmonic_distance[:ratio] = m * i
+            least_harmonic_distance[:distance] = c.hd_sum(config)
+          elsif (least_harmonic_distance[:distance] > c.hd_sum(config))
+            least_harmonic_distance[:ratio] = m * i
+            least_harmonic_distance[:distance] = c.hd_sum(config)
+          end
+        end
+      end
+      least_harmonic_distance
+    end
+    
+    # Returns an array of all possible candidates connected to the pitches
+    # Optional argument pc_only allows for consideration of only pitch-class
+    # projection space (where octave equivalency is respected)
+    def candidates(config = HD::HDConfig.new)
+      candidates = []
+      self.each do |e|
+        PRIMES.each do |p|
+          # Add each connected element
+          candidates << e * Ratio.new(p, 1)
+          candidates << e * Ratio.new(1, p)
+        end
+      end
+      # Filter everything for pitch-class space
+      if config.options[:pc_only]
+        candidates.each do |x|
+          x = x.pc_space
+        end
+        candidates = candidates & candidates
+      end
+      candidates.reject! {|x| self.include? x}
+      candidates
+    end
+    
     
     def to_s
       str = ""
       self.each {|x| str << x}
     end
   end # Chord (Class)
+  
+  class WeightedArray < Array
+    def initialize(*x)
+      if x
+        super(x)
+      else
+        super
+      end
+      @weights = Array.new(self.size, 1)
+    end
+  
+    def choose
+      normalized = []
+      # Normalize (divide each weight by the sum of all weights)
+      sum = 0.0
+      @weights.each {|x| sum += x}
+      if sum == 0.0
+        raise "WTF SUM IS ZERO"
+      end
+      normalized = @weights.map {|x| x /= sum }
+      normalized.each_with_index {|x,i| x += normalized[i-1] unless i == 0}      
+      # Each item should equal itself plus the previous item      
+      ranking = Array.new(normalized.size)
+      normalized.each_index do |i| 
+        if i == 0
+          ranking[i] = normalized[i]
+        else
+          ranking[i] = ranking[i-1] + normalized[i]
+        end
+      end
+      begin
+        r = rand
+        chosen = 0
+        
+        while r >= ranking[chosen]
+          chosen += 1
+        end
+      rescue ArgumentError => er
+        print "#{er.message}\n#{r}\t#{ranking}"
+      end
+      
+      return self[chosen]
+    end
+  
+    # Sets the new weighting
+    def weights=(input_weights)
+      if !(input_weights.instance_of? Array)
+        return nil
+      end
+      input_weights.map! {|x| x.to_f}
+      @weights = input_weights if input_weights.size == self.size
+    end
+  
+    def weights
+      return @weights
+    end
+  end
+  
+  #
+  # Select: Provide this thing with a base ratio and a config file (with prime weights 
+  # & tuneable intervals) and it'll choose a new pitch based on that prime number weighting.
+  # Supremely useful for finding the next interval to use based on harmonic distance.
+  # 
+  # Ideas: r could be the current origin at all times. So that would create a certain cloud
+  # around a particular pitch. When that cloud encroaches on another origin, the cloud
+  # may change its origin. That's left for a different controller module.
+  #
+  
+  def self.select(r = Ratio.new, config = HDConfig.new)
+    intervals = config.tuneable.map {|x| r * x}
+    intervals = WeightedArray.new(*intervals)
+    puts "#{intervals}"
+    intervals.weights = intervals.map do |x| 
+      if x.distance == 0.0
+        0.0
+      else
+        1.0 / x.distance
+      end
+    end
+    puts "#{intervals.weights}"
+    intervals.choose
+  end
+  
 end # HD (Module)
 
-ratio = HD::Ratio.new(5,4)
-origin = HD::Ratio.new(3,2)
-other = HD::Ratio.new(7,4)
-another = HD::Ratio.new(9,8)
+__END__
 
-puts "#{ratio} is %.3f from #{origin}" % ratio.distance(origin)
-ch = HD::Chord.new [ratio, origin, other, another]
 
-config = HD::HDConfig.new
-tun = HD::HDConfig.new
+next_to_go = [ratio]
+10.times do
+  lo = ch.logical_origin
+  puts "Chord is: #{ch.inspect}"
+  puts "#{lo[:ratio]} with a distance of #{lo[:distance]}"
+  ch << lo[:ratio]
+  next_to_go << lo[:ratio]
+  if ch.size > 3
+    ch.reject! {|x| x == next_to_go[0]}
+    next_to_go.rotate!(1)
+    next_to_go.pop
+  end
+end
