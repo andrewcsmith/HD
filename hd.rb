@@ -15,8 +15,16 @@ module HD
   class HDConfig
     attr_accessor :prime_weights, :tuneable, :options
     def initialize(prime_weights = PRIMES.dup, options = {:pc_only => false, :tuneable => "tuneable.txt"})
-      warn "WARNING: Prime weights and list of primes are not the same size!" if prime_weights.size != PRIMES.size
-      @prime_weights = prime_weights
+      if prime_weights.size != PRIMES.size
+        PRIMES.size.times do |i|
+          if prime_weights[i] == nil
+            prime_weights[i] = 0.0
+          end
+        end
+        @prime_weights = prime_weights
+      else
+        @prime_weights = prime_weights
+      end
       @options = options
       
       pattern = /(\d+)\/(\d+)/
@@ -31,6 +39,20 @@ module HD
         end
       end
     end
+    
+    def prime_weights=(new_weights)
+      if new_weights.size != PRIMES.size
+        PRIMES.size.times do |i|
+          if new_weights[i] == nil
+            new_weights[i] = 0.0
+          end
+        end
+        @prime_weights = new_weights
+      else
+        @prime_weights = new_weights
+      end
+    end
+    
   end # HDConfig (class)
   
   # Ratio class, which defines a point in harmonic space.
@@ -154,6 +176,9 @@ module HD
           city_blocks *= w ** factor[i]
         end
       end
+      if city_blocks == 0
+        return Math::log2(city_blocks) * -1
+      end
       return Math::log2(city_blocks)
     end
     
@@ -263,7 +288,6 @@ module HD
       candidates
     end
     
-    
     def to_s
       str = ""
       self.each {|x| str << x}
@@ -327,10 +351,13 @@ module HD
     end
   end
   
+  # A series of functions for choosing new pitches.
+  
   #
   # Select: Provide this thing with a base ratio and a config file (with prime weights 
   # & tuneable intervals) and it'll choose a new pitch based on that prime number weighting.
-  # Supremely useful for finding the next interval to use based on harmonic distance.
+  # Supremely useful for finding the next interval to use based on harmonic distance, without
+  # being entirely deterministic. Essentially creates a distribution of probabilities to shoot for
   # 
   # Ideas: r could be the current origin at all times. So that would create a certain cloud
   # around a particular pitch. When that cloud encroaches on another origin, the cloud
@@ -353,20 +380,3 @@ module HD
   end
   
 end # HD (Module)
-
-__END__
-
-
-next_to_go = [ratio]
-10.times do
-  lo = ch.logical_origin
-  puts "Chord is: #{ch.inspect}"
-  puts "#{lo[:ratio]} with a distance of #{lo[:distance]}"
-  ch << lo[:ratio]
-  next_to_go << lo[:ratio]
-  if ch.size > 3
-    ch.reject! {|x| x == next_to_go[0]}
-    next_to_go.rotate!(1)
-    next_to_go.pop
-  end
-end

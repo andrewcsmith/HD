@@ -18,10 +18,10 @@ puts "Starting chord:"
 ch.each {|x| puts x}
 puts
 
+config = HD::HDConfig.new([1,3,5])
+
 # Wrapped to 1.0 <= pitch <= 2.0
 config.options[:pc_only] = true
-
-config.prime_weights = [1,3,100,7,11,100,100,100,100]
 
 def add_me(ch, config)
   all_notes = []
@@ -31,7 +31,7 @@ def add_me(ch, config)
     m = HD::Chord.new([x])
     #print "#{(ch | m).hd_sum(config)}\n"
     # Had to .round(8) on the sum because of stupid rounding errors with sorting
-    all_notes << [x, (ch | m).hd_sum(config).round(8), x.distance]
+    all_notes << [x, (ch | m).hd_sum(config).round(8), x.distance(HD::Ratio.new, config)]
   end
   
   # Sort them all
@@ -48,7 +48,7 @@ def add_me(ch, config)
   ch << all_notes[0][0]
 end
 
-15.times do |i|
+12.times do |i|
   puts "Scale #{i+2}:"
   add_me(ch, config)
   ch.each {|x| puts x}
