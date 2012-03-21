@@ -7,7 +7,19 @@ require 'rational'
 module HD
   require 'set'
   require 'rational'
+  require 'narray'
   PRIMES = [2,3,5,7,11,13,17,19,23]
+  
+  # Had to add this to the NArray class for the olm & ulm, regarding harmonic distance
+  class NArray
+    def distance(origin = nil, config = HD::HDConfig.new)
+      dist_vectors = NArray.object(self.total)
+      for i in 0...self.total
+        dist_vectors[i] = self[i].distance(origin[i], config)
+      end
+      dist_vectors
+    end
+  end
   
   # Holds the configuration parameters for the various HD measurement functions
   # Settings that are possible as of now: a custom list of prime number weights, 
@@ -83,6 +95,14 @@ module HD
       return @num.to_f / @den
     end
     
+    def to_f
+      return self.dec
+    end
+    
+    def abs
+      return Ratio.new(self.num.abs, self.den.abs)
+    end
+    
     def pc_space
       while self.dec >= 2.0
         @den *= 2
@@ -97,17 +117,52 @@ module HD
     end
     
     def * r
-      if !r.is_a? Ratio
-        raise ArgumentError "Supplied class #{r.class} to HD::Ratio.*"
+      if r.is_a? Ratio
+        Ratio.new(r.num * self.num, r.den * self.den)
+      elsif r.is_a? Numeric
+        Ratio.new(self.num * r, self.den)
+      else
+        raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio.*")
       end
-      Ratio.new(r.num * self.num, r.den * self.den)
     end
     
     def ** i
       if !i.is_a? Object
-        raise ArgumentError "Supplied class #{i.class} to HD::Ratio.**"
+        raise ArgumentError.new("Supplied class #{i.class} to HD::Ratio.**")
       end
       Ratio.new(@num ** i, @den ** i)
+    end
+    
+    def - r
+      if r.class == HD::Ratio
+        Ratio.new(self.num * r.den - self.den * r.num, r.den * self.den)
+      else
+        raise Exception.new("Supplied class #{r.class} to HD::Ratio.-")
+      end
+    end
+    
+    def / r
+      if r.is_a? HD::Ratio
+        Ratio.new(r.num * self.den, r.den * self.num)
+      elsif r.is_a? Numeric
+        Ratio.new(self.num, r * self.den)
+      else
+        raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio./")
+      end
+    end
+    
+    def + r
+      if r.is_a? HD::Ratio
+        Ratio.new(self.num * r.den + self.den * r.num, self.den * r.den)
+      elsif r.is_a? Numeric
+        Ratio.new(self.num + r * self.den, self.den)
+      else
+        raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio.+")
+      end
+    end
+    
+    def coerce(other)
+      return self, other
     end
     
     # Necesssary to test for sets and subsets
@@ -184,15 +239,27 @@ module HD
     
     # Allows for an array of Ratio objects to be sorted according to size (scale order)
     def <=> other
-      return self.num.to_f / self.den <=> other.num.to_f / other.den
+      if other.class == HD::Ratio
+        return self.num.to_f / self.den <=> other.num.to_f / other.den
+      elsif other.is_a? Numeric
+        return self.to_f <=> other
+      end
     end
     
     def < other
-      return self.num.to_f / self.den < other.num.to_f / other.den
+      if other.is_a? HD::Ratio
+        return self.num.to_f / self.den < other.num.to_f / other.den
+      elsif other.is_a? Numeric
+        return self.to_f < other
+      else
+        raise Exception.new("WTF.")
+      end
     end
     
     def > other
-      return self.num.to_f / self.den > other.num.to_f / other.den
+      if other.class == HD::Ratio
+        return self.num.to_f / self.den > other.num.to_f / other.den
+      end
     end
     
     def to_s

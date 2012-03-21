@@ -1,0 +1,38 @@
+Notes about compatibility between HD & MM:
+
+For the HD::Ratio class (not taking into account Harmonic Distance):
+====================================================================
+
+direction metrics:
+
+No problems
+
+combinatorial metrics:
+
+MM::DistConfig
+scale = :relative
+intra_delta = :/.to_proc
+
+ic metric:
+
+irrelevant to this usage
+
+Taking Harmonic Distance into account:
+======================================
+
+intra_delta = :distance
+
+direction metrics:
+
+This does not entirely make sense. Although, perhaps, distance decreasing or increasing?
+
+ocm & ucm: no apparent problems
+olm & ulm: currently, the two vectors must be the same length
+
+The steps you must go through to change the prime weights:
+
+(where hdc is an HD::HDConfig and c is an MM::DistConfig)
+
+d = lambda {|m, n| m.distance(n, hdc)}
+c.intra_delta = d
+MM.vector_delta(m, c.order, c.intra_delta, nil) # => [ 1.584962500721156, 1.584962500721156, Infinity, Infinity ] 
