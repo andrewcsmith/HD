@@ -8,7 +8,7 @@ require './hd.rb'
 ch = HD::Chord.new([HD::Ratio.new(1,1)])
 
 # Projection Space:
-config = HD::HDConfig.new([1,3,5,7,11,13,17,19,23])
+config = HD::HDConfig.new({:prime_weights => [1,3,5,7,11,13,17,19,23]})
 # Harmonic Space (no octave)
 config.prime_weights = [2,3,5,7,11,13,17,19,23]
 # Harmonic Space (with octave)
@@ -18,10 +18,10 @@ puts "Starting chord:"
 ch.each {|x| puts x}
 puts
 
-config = HD::HDConfig.new([1,3,5])
+config = HD::HDConfig.new({:prime_weights => [1,3,5]})
 
 # Wrapped to 1.0 <= pitch <= 2.0
-config.options[:pc_only] = true
+config.pc_only = true
 
 def add_me(ch, config)
   all_notes = []
