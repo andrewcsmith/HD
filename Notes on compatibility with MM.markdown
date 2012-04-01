@@ -6,13 +6,20 @@
 
 No problems (use default config settings)
 
-magnitude metrics:
+### magnitude metrics:
 
-scale = :relative
+#### All Metrics:
+    scale = :relative
 
-Necessary delta functions:
+#### Unordered Magnitudes:
 
-### All Metrics:
+We first sum the differences so that we are only working with a single number
+
+	inter_delta = ->(a,b) { (Math.log2((a/b).to_f)).abs }
+		
+#### Ordered Magnitudes:
+
+We find the inter-vector delta for each corresponding pair, thus we pass the inter_delta function two arrays of pairs
 
 	inter_delta = ->(a, b) { new = NArray.object(a.total)
 		i = 0
@@ -23,10 +30,16 @@ Necessary delta functions:
 		new	
 	}
 
-### OCM & UCM:
+#### Combinatorial Magnitudes:
+
+We collect all the possible combinations and compare it pair by pair (rather than two vectors at once)
+
     intra_delta = ->(a,b) { (Math.log2((a/b).to_f)).abs }
 
-### OLM & ULM:
+#### Linear Magnitudes:
+
+For Linear Magnitudes, we pass two vectors to the delta function to find the deltas between each internal pair in series.
+
 	intra_delta = ->(a, b) { new = NArray.object(a.total)
 		i = 0
 		while i < a.total do
@@ -35,10 +48,6 @@ Necessary delta functions:
 		end
 		new	
 	}
-	
-ic metric:
-
-irrelevant to this usage
 
 harmonic distance:
 ==================
