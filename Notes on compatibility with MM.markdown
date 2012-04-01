@@ -1,24 +1,47 @@
-Notes about compatibility between HD & MM:
+# Notes about compatibility between Harmonic Distance and Morphological Metrics
 
-For the HD::Ratio class (not taking into account Harmonic Distance):
-====================================================================
+## For the HD::Ratio class (Euclidian Distance):
 
-direction metrics:
+### direction metrics:
 
-No problems
+No problems (use default config settings)
 
-combinatorial metrics:
+magnitude metrics:
 
-MM::DistConfig
 scale = :relative
-intra_delta = :/.to_proc
 
+Necessary delta functions:
+
+### All Metrics:
+
+	inter_delta = ->(a, b) { new = NArray.object(a.total)
+		i = 0
+		while i < a.total do
+			new[i] = (Math.log2((a[i]/b[i]).to_f).abs)
+			i += 1
+		end
+		new	
+	}
+
+### OCM & UCM:
+    intra_delta = ->(a,b) { (Math.log2((a/b).to_f)).abs }
+
+### OLM & ULM:
+	intra_delta = ->(a, b) { new = NArray.object(a.total)
+		i = 0
+		while i < a.total do
+			new[i] = (Math.log2((a[i]/b[i]).to_f).abs)
+			i += 1
+		end
+		new	
+	}
+	
 ic metric:
 
 irrelevant to this usage
 
-Taking Harmonic Distance into account:
-======================================
+harmonic distance:
+==================
 
 intra_delta = :distance
 
