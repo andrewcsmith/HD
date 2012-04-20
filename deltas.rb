@@ -7,6 +7,8 @@
 
 # Refactored into one Proc: this harmonic_distance_delta will respond correctly to both an HD::Ratio (as in combinatorial metrics) and an NArray (as in linear metrics). 
 module MM
+  require 'thread'
+  
   def self.get_harmonic_distance_delta(config = HD::HDConfig.new)  
     ->(a, b) {
       if a.is_a? HD::Ratio
@@ -73,7 +75,7 @@ module MM
     # Added this so that we could get a custom list of tuneable intervals & prime_weights in there
     hd_config          = opts[:hd_config]          || HD::HDConfig.new
     check_tuneable_intervals = opts[:check_tuneable] || false
-    config            = opts[:config]              || HD::HDConfig.new
+    config              = opts[:config]              || HD::HDConfig.new
 
     # Load the list of tuneable intervals from the options
     tuneable = hd_config.tuneable
@@ -89,58 +91,90 @@ module MM
     dimensions = start_vector.total
 
     step_size = start_step_size
-    puts "Initial step size is #{step_size}"
     
     times_with_same_vector = 0
     
     # Either divide, stay the same, or multiply
     candidates = [-1, 0, 1]
+    # Make an array of all possible combinations over the length of the vector
+    all_candidates = candidates.repeated_combination(start_vector.total).to_a
+    all_candidates.reject! {|x| x.all? {|y| candidates.include? y}}
     current_point = start_vector.dup
     path = [start_vector]
     
+    # Holds an array of all intervals that are the "wrong way" to go. There is the assumption (not quite accurate) that if a point leads to a dead-end at one time, it will always lead to a dead-end and that point should always be rejected.
+    # TODO : implement a more thorough search before putting a point in the "wrong way" array. The point should have exhausted all possible paths (that is, every possible tuneable interval from that point should have been tried)
     wrong_way = []
+    # dead_ends is a catalog of every dead end that has been found by the search function. The keys are all points, while the values are tuneable intervals. If a tuneable interval returns no possible tuneable points (not equal to the current point) than it is deemed a dead end, and added to that point's list of dead ends in the value array.
+    dead_ends = {}
   
     max_iterations.times do |iteration|
+      
+      if wrong_way.include? start_vector
+        puts "Aborting climb at iteration #{iteration} :("
+        break
+      end
       # Sorts the list of tuneable intervals by whether they can possibly bring the vector closer
       # The current point will be multiplied by the tuneable interval, across the vector
-    
-      puts "- Iteration #{iteration}"
+      
+      #puts "- Iteration #{iteration}"
       current_point_cache = current_point.dup
       current_result = climb_func.call(current_point)
-
-      puts "Current point is #{current_point.to_a} with a distance of #{"%0.3f" % current_result}"
-
+      #puts "Current point is #{current_point.to_a} with a distance of #{"%0.3f" % current_result}"
+      # Initialize an array for the current point if it does not already have one
+      dead_ends[current_point] == nil ? dead_ends[current_point] = [] : false
       # Generate a collection of test points with scores: [point, score]
       test_points = []
-      
-      # Sort the list of tuneable intervals the mean hd-sum of all possible combinations operating on the current vector
-      all_candidates = candidates.repeated_combination(current_point.total).to_a
+      # Sort the list of tuneable intervals by the mean hd-sum of all possible tuneable combinations operating on the current vector
       tuneable_scores = []
       for i in 1...tuneable.size
-        interval_score = 0.0
-        # for each possible combination of exponents
-        for j in 0...all_candidates.size
-          # interval_score += climb_func.call(current_point * (tuneable[i] ** all_candidates[j]))
-          interval_score += MM.dist_ocm(start_vector, current_point * (tuneable[i] ** all_candidates[j]), config)
-        end
-          interval_score /= all_candidates.size
+          interval_score = 0.0
+          interval_count = 0
+          # If the current tuneable interval is a dead end, skip it and try the next one
+          (dead_ends[current_point].include? tuneable[i]) ? next : false
+          for j in 0...all_candidates.size
+            possible_point = current_point * (tuneable[i] ** all_candidates[j])
+            all_tuneable?(possible_point, tuneable) ? true : next
+            # Hard-wired to the OCM, but could possible be something else
+            interval_score += MM.dist_ocm(start_vector, possible_point, config)
+            interval_count += 1
+          end
+          ( interval_count != 0 ) ? interval_score /= interval_count : (dead_ends[current_point] << tuneable[i]; next)
           tuneable_scores << [tuneable[i], interval_score]
       end
+      
       tuneable_scores.sort_by! {|x| x[1]}
+      # print "#{tuneable_scores}\n"
+      
+      # Trying to see how long it takes to get the first result
+      # exit
+      
+      # Clearly we are at a dead end.
+      if tuneable_scores.all? {|x| x == nil}
+        if path.size > 1
+          wrong_way << path.pop
+          #puts "WRONG WAY is #{wrong_way.to_a}"
+        end
+        current_point = path[-1]
+        #puts "Moving back a step: #{path.to_a}"
+        step_size = start_step_size
+        next
+      end
       
       # Decide which interval to use (based on the desired step size)
       interval_index = -1
       begin
         interval_index += 1
       end while (step_size * current_result > tuneable_scores[interval_index][1] && interval_index < tuneable_scores.size-1)
+      
       #puts "#{tuneable_scores.to_a}"
       #puts "Step size is #{"%0.2f" % step_size} / #{"%0.2f" % (step_size * current_result)}"
-      puts "Chosen interval is #{tuneable_scores[interval_index][0]} with a score of #{"%0.3f" % tuneable_scores[interval_index][1]}"
-      
-      # Check whether all intervals in the current chosen interval are tuneable
+      #puts "Chosen interval is #{tuneable_scores[interval_index][0]} with a score of #{"%0.3f" % tuneable_scores[interval_index][1]}"
+      puts "#{iteration}: \tInterval: #{tuneable_scores[interval_index][0]} \tDistance: #{current_result}"
       for c in all_candidates
         # Find the new point
         new_point = current_point * (tuneable_scores[interval_index][0] ** c)
+        new_point *= new_point[0] ** -1
         (wrong_way.include? new_point) ? next :
         # If all intervals are tuneable (or if we don't care), then add it to the possible candidates
         (all_tuneable?(new_point, tuneable) || !check_tuneable_intervals) ? (test_points << [new_point, climb_func.call(new_point)]) : next
@@ -148,7 +182,6 @@ module MM
       end
       
       #print "#{test_points}\n"
-      
       begin
         test_points.sort_by! {|x| x[1] }
       rescue ArgumentError => ex
@@ -166,11 +199,16 @@ module MM
           step_size *= 0.5
         end
         step_size = min_step_size if step_size < min_step_size
+        dead_ends[current_point] << tuneable_scores[interval_index][0]
         next
       end
       
       if winner[1] < current_result
-        current_point = winner[0] 
+        current_point = winner[0]
+        # Makes the vector always begin on 1/1, whatever that may be
+        if current_point[0] != HD.r
+          current_point *= (current_point[0] ** -1)
+        end
         path << current_point.dup
       end
     
@@ -181,7 +219,8 @@ module MM
       end
       
       if current_point == current_point_cache
-        times_with_same_vector += 1
+        dead_ends[current_point] << tuneable_scores[interval_index][0]
+        next
       end
       
       if current_point == current_point_cache && step_size > min_step_size
@@ -193,20 +232,7 @@ module MM
         end
         step_size = min_step_size if step_size < min_step_size
         # puts "Lower step size to #{"%0.2f" % step_size}"
-        if times_with_same_vector > 2 && interval_index == 0
-          if path.size > 1
-            wrong_way << path.pop
-            #puts "WRONG WAY is #{wrong_way.to_a}"
-          end
-          current_point = path[-1]
-          puts "Moving back a step: #{path.to_a}"
-          times_with_same_vector = 0
-          step_size = start_step_size
-          next
-        end
       elsif current_point == current_point_cache && step_size <= min_step_size
-        
-        
         # We didn't get any good results, and we can't lower the step size
         puts "Aborting climb at iteration #{iteration} :("
         break
@@ -240,9 +266,7 @@ module MM
       end
     EOS
   end
-
-  # TODO: It may be worthwhile to create another boolean function that asserts whether or not each leap in a given morph is "tuneable." This would require the entire list of tuneable intervals, and would function much like the intra_delta for a linear metric. It would return "false" if a given leap in the morph was not contained in the list of tuneable intervals; otherwise, it would return "true."
-
+  
   # Deprecated: Use get_harmonic_distance_delta
   # Returns a Proc for harmonic distance, but with a permanent HDConfig Object attached
   def self.get_harmonic_distance_delta_single(config = HD::HDConfig.new)
@@ -251,21 +275,3 @@ module MM
       a.distance(b, config) }
   end
 end
-
-
-__END__
-  
-hdc = HD::HDConfig.new
-hdc.prime_weights = [1,3,5,7,11]
-#hdc.tuneable.reject! {|x| x.to_f > 2.0}
-point_opts[:search_func] = hill_climb_stochastic_hd
-point_opts[:return_full_path] = false
-point_opts[:search_opts][:hd_config] = hdc
-MM.find_point_at_distance(point_opts)
-
-# Example: Getting an hd-delta by passing a config
-
-d1_config = HD::HDConfig.new
-# This will forever link the d1_config to the actual delta function. In order to unlink the two (and have a static config, even when further changes are made to the config file), you would need to make a deep copy, because the config stores the prime_weights in an array where only the reference gets copied.
-d1 = get_harmonic_distance_delta(d1_config)
-
