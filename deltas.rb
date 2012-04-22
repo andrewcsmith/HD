@@ -6,8 +6,15 @@
 # In combinatorial metrics, the intra_delta acts upon each of the possible pair combinations. By contrast, a linear metric is passed two NArrays filled with objects that need to be acted upon, in this case HD::Ratio objects, of [0...a.total-1] and [1...a.total], so that each successive pair is operated upon.
 
 # Refactored into one Proc: this harmonic_distance_delta will respond correctly to both an HD::Ratio (as in combinatorial metrics) and an NArray (as in linear metrics). 
+
+# Fixing the NArray to_f method
+class NArray
+  def to_f
+    NArray[*self.collect {|x| x.to_f}]
+  end
+end
+
 module MM
-  require 'thread'
   
   def self.get_harmonic_distance_delta(config = HD::HDConfig.new)  
     ->(a, b) {
@@ -42,9 +49,7 @@ module MM
   end
 
     ##
-    # :singleton-method: hill_climb_stochastic_hd
-    #
-    # A stochastic hill climbing algorithm. Probably a bad one.
+    # The goal is to write a greedy A * search algorithm
     #
     # Takes a hash with the following keys:
     #
@@ -76,6 +81,7 @@ module MM
     hd_config          = opts[:hd_config]          || HD::HDConfig.new
     check_tuneable_intervals = opts[:check_tuneable] || false
     config              = opts[:config]              || HD::HDConfig.new
+    banned              = opts[:banned]             || nil
 
     # Load the list of tuneable intervals from the options
     tuneable = hd_config.tuneable
@@ -85,159 +91,180 @@ module MM
     tuneable.reject! {|x| (x.distance(HD.r, hd_config) ** -1) == 0}
     
     start_distance = climb_func.call(start_vector)
-    # start_step_size *= start_distance
-    
     # Length of the vector is the number of dimensions
     dimensions = start_vector.total
-
     step_size = start_step_size
-    
-    times_with_same_vector = 0
-    
     # Either divide, stay the same, or multiply
     candidates = [-1, 0, 1]
     # Make an array of all possible combinations over the length of the vector
     all_candidates = candidates.repeated_combination(start_vector.total).to_a
-    all_candidates.reject! {|x| x.all? {|y| candidates.include? y}}
-    current_point = start_vector.dup
-    path = [start_vector]
+    all_candidates.reject! {|x| x.all? {|y| y == x[0]}}
+    all_candidates.map! {|x| NArray.to_na(x)}
     
-    # Holds an array of all intervals that are the "wrong way" to go. There is the assumption (not quite accurate) that if a point leads to a dead-end at one time, it will always lead to a dead-end and that point should always be rejected.
-    # TODO : implement a more thorough search before putting a point in the "wrong way" array. The point should have exhausted all possible paths (that is, every possible tuneable interval from that point should have been tried)
-    wrong_way = []
+    results = []
+    
+    current_point = [start_vector.dup, start_distance, 0.0]
+    path = [current_point]
+    
+    log = File.new("results/log #{Time.now}.txt", "w")
+    
+    # Holds an array of all intervals that are the "wrong way" to go. There is the assumption that if a point leads to a dead-end at one time, it will always lead to a dead-end and that point should always be rejected.
+    if banned
+      wrong_way = banned
+    else
+      wrong_way = []
+    end
     # dead_ends is a catalog of every dead end that has been found by the search function. The keys are all points, while the values are tuneable intervals. If a tuneable interval returns no possible tuneable points (not equal to the current point) than it is deemed a dead end, and added to that point's list of dead ends in the value array.
     dead_ends = {}
-  
+    climb_scores = {}
+    
     max_iterations.times do |iteration|
-      
       if wrong_way.include? start_vector
+        puts "Start vector is a dead end"
         puts "Aborting climb at iteration #{iteration} :("
         break
       end
       # Sorts the list of tuneable intervals by whether they can possibly bring the vector closer
       # The current point will be multiplied by the tuneable interval, across the vector
       
-      #puts "- Iteration #{iteration}"
+      puts "- Iteration #{iteration}\t\tPath: #{path.size} points"
       current_point_cache = current_point.dup
-      current_result = climb_func.call(current_point)
-      #puts "Current point is #{current_point.to_a} with a distance of #{"%0.3f" % current_result}"
-      # Initialize an array for the current point if it does not already have one
-      dead_ends[current_point] == nil ? dead_ends[current_point] = [] : false
+      
+      # Calculate and cache the climb_score of the current_point
+      !climb_scores[current_point[0]] ? climb_scores[current_point[0]] = climb_func.call(current_point[0]).to_f : false
+      current_result = climb_scores[current_point[0]]
+      
+      #warn "Current Result: #{current_result}\nCurrent Path: #{path[-1]}"
+      
+      log.puts "Current point is #{current_point[0].to_a} with a distance of #{"%0.3f" % current_result} and distance travelled of #{"%0.3f" % path[-1][2]}"
+      puts "Current point is #{current_point[0].to_a} with a distance of #{"%0.3f" % current_result} and distance travelled of #{"%0.3f" % path[-1][2]}"
+      log.puts "Current path is #{path.to_a}"
+      # Initialize a dead ends hash entry for the current point if it does not already have one
+      dead_ends[current_point[0]] == nil ? dead_ends[current_point[0]] = [] : false
       # Generate a collection of test points with scores: [point, score]
       test_points = []
       # Sort the list of tuneable intervals by the mean hd-sum of all possible tuneable combinations operating on the current vector
-      tuneable_scores = []
-      for i in 1...tuneable.size
-          interval_score = 0.0
-          interval_count = 0
-          # If the current tuneable interval is a dead end, skip it and try the next one
-          (dead_ends[current_point].include? tuneable[i]) ? next : false
-          for j in 0...all_candidates.size
-            possible_point = current_point * (tuneable[i] ** all_candidates[j])
-            all_tuneable?(possible_point, tuneable) ? true : next
-            # Hard-wired to the OCM, but could possible be something else
-            interval_score += MM.dist_ocm(start_vector, possible_point, config)
-            interval_count += 1
-          end
-          ( interval_count != 0 ) ? interval_score /= interval_count : (dead_ends[current_point] << tuneable[i]; next)
-          tuneable_scores << [tuneable[i], interval_score]
-      end
-      
-      tuneable_scores.sort_by! {|x| x[1]}
-      # print "#{tuneable_scores}\n"
-      
-      # Trying to see how long it takes to get the first result
-      # exit
-      
-      # Clearly we are at a dead end.
-      if tuneable_scores.all? {|x| x == nil}
-        if path.size > 1
-          wrong_way << path.pop
-          #puts "WRONG WAY is #{wrong_way.to_a}"
+      scores = []
+      # print "all candidates: #{all_candidates}"
+      # highest_g_cost = Math.sqrt(all_candidates[0].total)
+      for i in tuneable
+        interval_score = 0.0
+        interval_count = 0
+        scores_cache = scores.dup
+        # If the current tuneable interval is a dead end, skip it and try the next one
+        (dead_ends[current_point[0]].include? i) ? next : false
+        for j in all_candidates
+          possible_point = current_point[0] * (i ** j)
+          # Normalize the point
+          (possible_point[0] != HD.r) ? possible_point *= (possible_point[0] ** -1) : false
+          # If the possible point is the wrong way, skip it
+          !(wrong_way.include? possible_point) ? true : next
+          # If the point is not tuneable, skip it, and add it to the wrong_way array to speed up future computations
+          all_tuneable?(possible_point, tuneable) ? true : (wrong_way << possible_point; next)
+          # Makes a list of what will move get us the closest
+          # In the F = G + H of the A * algorithm, this is the H
+          # We cache the H distance for all the points so that we don't have to re-calculate it later
+          !climb_scores[possible_point] ? climb_scores[possible_point] = climb_func.call(possible_point).to_f : false
+          h = climb_scores[possible_point]
+          # This g function wants to minimize the euclidian distance travelled between steps
+          g = MM.dist_ulm(possible_point, current_point[0], MM::DistConfig.new({:scale => :relative})).to_f
+          # The scores are [point, h, g] where h is the heuristic measure of how far we are from the goal and g is the distance we've travelled so far
+          scores << [possible_point, h.to_f, g.to_f]
         end
-        current_point = path[-1]
-        #puts "Moving back a step: #{path.to_a}"
-        step_size = start_step_size
-        next
+        # if none of the candidates were cool, then add this interval to the dead ends
+        scores == scores_cache ? dead_ends[current_point[0]] << i : false
       end
       
-      # Decide which interval to use (based on the desired step size)
-      interval_index = -1
-      begin
-        interval_index += 1
-      end while (step_size * current_result > tuneable_scores[interval_index][1] && interval_index < tuneable_scores.size-1)
+      scores.reject! {|x| x[0] == current_point[0]}
       
-      #puts "#{tuneable_scores.to_a}"
-      #puts "Step size is #{"%0.2f" % step_size} / #{"%0.2f" % (step_size * current_result)}"
-      #puts "Chosen interval is #{tuneable_scores[interval_index][0]} with a score of #{"%0.3f" % tuneable_scores[interval_index][1]}"
-      puts "#{iteration}: \tInterval: #{tuneable_scores[interval_index][0]} \tDistance: #{current_result}"
-      for c in all_candidates
-        # Find the new point
-        new_point = current_point * (tuneable_scores[interval_index][0] ** c)
-        new_point *= new_point[0] ** -1
-        (wrong_way.include? new_point) ? next :
-        # If all intervals are tuneable (or if we don't care), then add it to the possible candidates
-        (all_tuneable?(new_point, tuneable) || !check_tuneable_intervals) ? (test_points << [new_point, climb_func.call(new_point)]) : next
-        test_points.uniq!
-      end
-      
-      #print "#{test_points}\n"
-      begin
-        test_points.sort_by! {|x| x[1] }
-      rescue ArgumentError => ex
-        puts "#{ex.message}"
-      end
-      
-      winner = test_points[0]
-      
-      # If there are no possible test_points then something is wrong.
-      # TODO: make this backtrack more effectively (and efficiently)
-      if winner == nil
-        if step_size_subtract
-          step_size -= step_size_subtract 
+      # Check to see if the current vector is a dead end
+      if scores.all? {|x| x == nil}
+        if path.size > 0
+          puts "This vector is a dead end"
+          wrong_way << path.pop[0]
+          current_point = path[-1]
+          next
         else
-          step_size *= 0.5
+          puts "Start vector is a dead end"
+          puts "Aborting climb at iteration #{iteration} :("
+          break
         end
-        step_size = min_step_size if step_size < min_step_size
-        dead_ends[current_point] << tuneable_scores[interval_index][0]
-        next
       end
       
-      if winner[1] < current_result
-        current_point = winner[0]
-        # Makes the vector always begin on 1/1, whatever that may be
-        if current_point[0] != HD.r
-          current_point *= (current_point[0] ** -1)
-        end
-        path << current_point.dup
+      # Normalize the values h & g [point, h, g]
+      max_h = (scores.max {|a, b| a[1] <=> b[1]})[1]
+      max_h = 1.0
+      max_g = (scores.max {|a, b| a[2] <=> b[2]})[2]
+      #print "scores: #{scores}"
+      if max_h != 0 && max_g != 0
+        scores.map! {|x| x[1] /= max_h; x[2] /= max_g; x}
+      else
+        raise Exception.new("max_h: #{max_h}\t\tmax_g: #{max_g}")
       end
-    
-      test_score = climb_func.call(current_point)
+      
+      # The g-score should actually be cumulative
+      scores.map! {|x| x[2] += path[-1][2]; x}
+      
+      # We sort by h + g, to pick the point that gets us closest
+      # scores.sort_by! {|x| x[1] + (x[2] / (path.size + 1.0))}
+      scores.sort_by! {|x| x[1]}
+      scores.reject! {|x| x[0] == current_point}
+      s_cache = nil
+      # Reject duplicate values
+      scores.reject! {|x| (x[0] == s_cache) ? (s_cache = x[0]; true) : (s_cache = x[0]; false)}      
+      
+      winner = nil
+      for s in scores
+        if climb_scores[s[0]] < current_result
+          winner = s
+          break
+        end
+      end
+      
+      if winner == nil
+        if path.size > 0
+          puts "Can't move any closer from the current vector"
+          wrong_way << path.pop[0]
+          current_point = path[-1]
+          next
+        else
+          puts "all possible movements just make us go further away"
+          puts "Aborting climb at iteration #{iteration} :("
+          break
+        end
+      end
+        
+      current_point = winner
+      # The path is made up of two entries: [point, distance via path to the current point]
+      # path << [current_point.dup, (MM.dist_ulm(current_point, path[-1]) + path[-1][1]).to_f]
+      path << current_point
+      
+      # Test score is h
+      test_score = climb_scores[current_point[0]]
       if test_score < (0 + epsilon) && test_score > (0 - epsilon)
         puts "Success at iteration #{iteration}"
         break
-      end
-      
-      if current_point == current_point_cache
-        dead_ends[current_point] << tuneable_scores[interval_index][0]
+        # The following is what you do when you want a bunch of points the same distance away (a SPHERE)
+        # Comment out "break" above
+        wrong_way << path.pop[0]
+        results << wrong_way[-1].dup
+        current_point = path[-1]
         next
       end
       
-      if current_point == current_point_cache && step_size > min_step_size
-        # We didn't get any good results, so lower the step size
-        if step_size_subtract
-          step_size -= step_size_subtract 
+      if current_point[0] == current_point_cache[0]
+        if path.size > 0
+          wrong_way << path.pop[0]
+          current_point = path[-1]
+          puts "This vector got us nowhere"
         else
-          step_size *= 0.5
+          puts "Aborting climb at iteration #{iteration} :("
+          break
         end
-        step_size = min_step_size if step_size < min_step_size
-        # puts "Lower step size to #{"%0.2f" % step_size}"
-      elsif current_point == current_point_cache && step_size <= min_step_size
-        # We didn't get any good results, and we can't lower the step size
-        puts "Aborting climb at iteration #{iteration} :("
-        break
       end
+      
     end
+    log.close
     return path if return_full_path
     current_point
   }
