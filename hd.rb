@@ -3,10 +3,8 @@
 #  ========== 
 # A module for measuring harmonic distance
 # test.
-require 'rational'
 module HD
   require 'set'
-  require 'rational'
   require 'narray'
   PRIMES = [2,3,5,7,11,13,17,19,23]
   
@@ -25,8 +23,13 @@ module HD
   # Settings that are possible as of now: a custom list of prime number weights, 
   # and a custom filename from which to read in a list of tuneable intervals.
   class HDConfig
-    attr_accessor :prime_weights, :tuneable, :options
-    def initialize(prime_weights = PRIMES.dup, options = {:pc_only => false, :tuneable => "tuneable.txt"})
+    attr_accessor :prime_weights, :pc_only, :tuneable
+    
+    def initialize(options = { })
+      @prime_weights =    options[:prime_weights] || PRIMES.dup
+      @pc_only =          options[:pc_only]       || false
+      @tuneable_file =    options[:tuneable_file] || "tuneable.txt"
+      
       if prime_weights.size != PRIMES.size
         PRIMES.size.times do |i|
           if prime_weights[i] == nil
@@ -37,16 +40,17 @@ module HD
       else
         @prime_weights = prime_weights
       end
+      
       @options = options
       
       pattern = /(\d+)\/(\d+)/
       @tuneable = []
       # Reads in the entire list of tuneable intervals from a file
-      File.open(options[:tuneable], "r") do |intervals|
+      File.open(@tuneable_file, "r") do |intervals|
         intervals.readlines.each do |line|
           if (pattern =~ line) != nil
             full = Regexp.last_match
-            @tuneable << HD::Ratio.new(full[1].to_i, full[2].to_i)
+            @tuneable << HD::Ratio[full[1].to_i, full[2].to_i]
           end
         end
       end
@@ -68,31 +72,47 @@ module HD
   end # HDConfig (class)
   
   # Ratio class, which defines a point in harmonic space.
-  # TODO: Figure out how to make this a subclass to Rational
-  class Ratio
+  # In the process of re-writing this so it is a 2D NVector
+  class Ratio < NVector
+    # attr_reader :num, :den
     include Enumerable
-    require 'rational'
-    attr_accessor :num, :den
     
     # Default value is 1/1. This make it easier to provide an origin of 1/1 for any distance function.
-    def initialize(num = 1, den = 1)
-      # The use of rational makes sure that the Ratio is always in reduced form
-      r = Rational(num, den)
-      @num = r.numerator
-      @den = r.denominator
+    def initialize(*args)
+      super
     end
     
-    # Predicate: returns whether or not the Ratio satisfies all conditions
-    def satisfy?
-      ratio = [@num, @den]
-      ratio.each do |x|
-        return false if (yield x) == false
+    def self.[] *args
+      r = Ratio.new(3,2)
+      r[0] = args[0]
+      r[1] = args[1]
+      !r[1] ? r[1] = 1 : false
+      r
+    end
+    
+    def reduce
+      r = self.dup
+      while r[0] > 0 do
+        tmp = r[1]
+        r[1] = r[0] % r[1]
+        r[1] = tmp
       end
-      true
+      r
+    end
+    
+    # Converts a string (separated by a tab, whitespace, or comma) to an array of HD::Ratio objects. 
+    # Example:
+    # HD::Ratio.from_s("1/1 4/3 16/7") # => Array[HD.r, HD.r(4,3), HD.r(16,7)]
+    #
+    # Can also be used to convert backward from a printed array of Ratios (i.e., to read in a file)
+    def self.from_s s
+      ratios = s.scan(/(\d+)\/(\d+)/)
+      ratios.map! {|x| Ratio[x[0].to_i, x[1].to_i] }
+      ::NArray.to_na(ratios)
     end
     
     def dec
-      return @num.to_f / @den
+      return self[0].to_f / self[1]
     end
     
     def to_f
@@ -100,42 +120,39 @@ module HD
     end
     
     def abs
-      return Ratio.new(self.num.abs, self.den.abs)
+      return Ratio.new(self[0].abs, self[1].abs)
     end
     
     def pc_space
       while self.dec >= 2.0
-        @den *= 2
+        self[1] *= 2
       end
       while self.dec < 1.0
-        @num *= 2
+        self[0] *= 2
       end
-      
-      r = Rational(@num, @den)
-      @num = r.numerator
-      @den = r.denominator
     end
     
     def * r
       if r.is_a? Ratio
-        Ratio.new(r.num * self.num, r.den * self.den)
+        Ratio.new(r[0] * self[0], r[1] * self[1])
       elsif r.is_a? Numeric
-        Ratio.new(self.num * r, self.den)
+        Ratio.new(self[0] * r, self[1])
       else
         raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio.*")
       end
     end
     
     def ** i
-      if !i.is_a? Object
-        raise ArgumentError.new("Supplied class #{i.class} to HD::Ratio.**")
-      end
-      Ratio.new(@num ** i, @den ** i)
+      (!i.is_a? Object) ? (raise ArgumentError.new("Supplied class #{i.class} to HD::Ratio.**")) : false
+      (i.respond_to? :collect) ? (return ::NArray.to_na(i.to_a.collect {|x| self ** x})) : false
+      Ratio.new(self[0] ** i, self[1] ** i)
     end
     
     def - r
-      if r.class == HD::Ratio
-        Ratio.new(self.num * r.den - self.den * r.num, r.den * self.den)
+      if r.is_a? Ratio
+        Ratio.new(self[0] * r[1] - self[1] * r[0], r[1] * self[1])
+      elsif r.is_a? Numeric
+        self.-(Ratio.new(r, 1))
       else
         raise Exception.new("Supplied class #{r.class} to HD::Ratio.-")
       end
@@ -143,9 +160,9 @@ module HD
     
     def / r
       if r.is_a? HD::Ratio
-        Ratio.new(r.num * self.den, r.den * self.num)
+        Ratio.new(r[0] * self[1], r[1] * self[0])
       elsif r.is_a? Numeric
-        Ratio.new(self.num, r * self.den)
+        Ratio.new(self[0], r * self[1])
       else
         raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio./")
       end
@@ -153,9 +170,9 @@ module HD
     
     def + r
       if r.is_a? HD::Ratio
-        Ratio.new(self.num * r.den + self.den * r.num, self.den * r.den)
+        Ratio.new(self[0] * r[1] + self[1] * r[0], self[1] * r[1])
       elsif r.is_a? Numeric
-        Ratio.new(self.num + r * self.den, self.den)
+        Ratio.new(self[0] + r * self[1], self[1])
       else
         raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio.+")
       end
@@ -167,7 +184,13 @@ module HD
     
     # Necesssary to test for sets and subsets
     def eql? r
-      @num == r.num && @den == r.den
+      if r.is_a? Ratio
+        @num == r[0] && @den == r[1]
+      elsif r.is_a? Fixnum
+        self.to_f == r
+      else
+        raise TypeError.new("Tried to compare a #{r.class} to an HD::Ratio")
+      end
     end
     
     # Defines the hash to properly test for equality
@@ -175,30 +198,34 @@ module HD
       [@num, @den].hash
     end
     
+    def == r
+      self.eql? r
+    end
+    
     # Each iterator; required for Enumerable
     def each
-      yield @num
-      yield @den
+      yield self[0]
+      yield self[1]
     end
     
     # The normal map method returns an Array (we want a Ratio back)
     def map
-      num = yield @num
-      den = yield @den
-      Ratio.new(num, den)
+      num = yield self[0]
+      den = yield self[1]
+      Ratio[num, den]
     end
     
     # Reduces the ratio and returns the value
     def reduce
       ratio = self.dup
-      PRIMES.each {|z| ratio = ratio.map {|y| y /= z} while ratio.satisfy? {|y| y % z == 0}}
+      PRIMES.each {|z| ratio = ratio.map {|y| y /= z} while ratio.all? {|y| y % z == 0}}
       ratio
     end
     
     # For each of the num and den, provides a list of exponents. Primes are only up through the size of PRIMES.
     def factors
-      num = @num
-      den = @den
+      num = self[0]
+      den = self[1]
       exponents = [num, den]
       exponents.map! do |y|
         PRIMES.map do |x|
@@ -219,8 +246,8 @@ module HD
     def distance(origin = HD::Ratio.new, config = HD::HDConfig.new)
       weights = config.prime_weights
       me = self.dup
-      me.num *= origin.den
-      me.den *= origin.num
+      me[0] *= origin[1]
+      me[1] *= origin[0]
       me = me.reduce
       factors = me.factors
       warn "Weights and factors are not the same size!" if factors[0].size != weights.size
@@ -240,7 +267,7 @@ module HD
     # Allows for an array of Ratio objects to be sorted according to size (scale order)
     def <=> other
       if other.class == HD::Ratio
-        return self.num.to_f / self.den <=> other.num.to_f / other.den
+        return self[0].to_f / self[1] <=> other[0].to_f / other[1]
       elsif other.is_a? Numeric
         return self.to_f <=> other
       end
@@ -248,7 +275,7 @@ module HD
     
     def < other
       if other.is_a? HD::Ratio
-        return self.num.to_f / self.den < other.num.to_f / other.den
+        return self[0].to_f / self[1] < other[0].to_f / other[1]
       elsif other.is_a? Numeric
         return self.to_f < other
       else
@@ -258,12 +285,12 @@ module HD
     
     def > other
       if other.class == HD::Ratio
-        return self.num.to_f / self.den > other.num.to_f / other.den
+        return self[0].to_f / self[1] > other[0].to_f / other[1]
       end
     end
     
     def to_s
-      return "#{@num}/#{@den}"
+      return "#{self[0]}/#{self[1]}"
     end
   end # Ratio (Class)
   
@@ -345,7 +372,7 @@ module HD
         end
       end
       # Filter everything for pitch-class space
-      if config.options[:pc_only]
+      if config.pc_only
         candidates.each do |x|
           x = x.pc_space
         end
@@ -445,5 +472,14 @@ module HD
     puts "#{intervals.weights}"
     intervals.choose
   end
+  
+  #
+  # Shorthand: Outside of the class, HD.r(n, m) is short for HD::Ratio.new(n, m)
+  #
+  class_eval(<<-EOS, __FILE__, __LINE__)
+    def self.r(n = 1, m = 1)
+      Ratio[n, m]
+    end
+  EOS
   
 end # HD (Module)
