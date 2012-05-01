@@ -46,14 +46,15 @@ module MM
   # Convenience method for determining whether or not all the intervals are tuneable
   # Provide it with a point to test and an array of tuneable intervals (HD::Ratio objects)
   def self.all_tuneable?(point, tuneable, range = [HD.r(2,3), HD.r(16,3)])
-    for i in 0...point.total
+    for i in 0...point.shape[1]
       # Using the same variable name to note intervals that are out of range
       # (Default range settings are for the violin)
-      (point[i] < range[0] || point[i] > range[1]) ? (return false) : 
+      m = HD::Ratio[*point[true,i]]
+      (m < range[0] || m > range[1]) ? (return false) : 
       # If it's the first interval, we don't care about tuneability
-      i == 0 ? next :
+      i == 0 ? next : n = HD::Ratio[*point[true,i-1]]
       # This is the actual tuneability part
-      interval = point[i] / point[i-1]
+      interval = m / n
       !((tuneable.include? interval) || (tuneable.include? (interval ** -1))) ? (return false) : next
     end
     true
@@ -115,12 +116,12 @@ module MM
     
     start_distance = climb_func.call(start_vector)
     # Length of the vector is the number of dimensions
-    dimensions = start_vector.total
+    dimensions = start_vector.shape[1]
     step_size = start_step_size
     # Either divide, stay the same, or multiply
     candidates = [-1, 0, 1]
     # Make an array of all possible combinations over the length of the vector
-    all_candidates = candidates.repeated_combination(start_vector.total).to_a
+    all_candidates = candidates.repeated_combination(start_vector.shape[1]).to_a
     all_candidates.reject! {|x| x.all? {|y| y == x[0]}}
     all_candidates.map! {|x| NArray.to_na(x)}
     

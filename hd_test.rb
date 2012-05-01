@@ -18,7 +18,6 @@ class MMTest < Test::Unit::TestCase
     v2 = NArray[HD.r(4,3), HD.r(6,5), HD.r(9,8), HD.r(5,3), HD.r(9,5)]
 
     # Harmonic Distance Configurations
-
     d_config = HD::HDConfig.new
 
     c_olm = MM::DistConfig.new

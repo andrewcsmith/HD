@@ -22,9 +22,9 @@ d_config.prime_weights = [2,3,2,7]
 
 # d_config.tuneable.reject! {|x| x.to_f > 4.0}
 
-if !MM.all_tuneable?(start_point, d_config.tuneable)
-  raise Exception.new("NO WAY. START POINT IS NOT TUNEABLE DUDE.\n #{start_point.to_a}")
-end
+# if !MM.all_tuneable?(start_point, d_config.tuneable)
+#   raise Exception.new("NO WAY. START POINT IS NOT TUNEABLE DUDE.\n #{start_point.to_a}")
+# end
 
 # Wrap all tuneable intervals to within an octave
 # d_config.tuneable.collect! do |x| 
@@ -47,6 +47,7 @@ c_olm.scale = :absolute
 c_olm.intra_delta = MM.get_harmonic_distance_delta(d_config)
 # At this point, we are in the logarithmic domain so we can resort to subtraction to find the difference
 c_olm.inter_delta = MM::DELTA_FUNCTIONS[:abs_diff]
+c_olm.int_func = MM::INTERVAL_FUNCTIONS[:pairs]
 
 c_ocd = MM::DistConfig.new
 
@@ -66,22 +67,13 @@ point_opts = {
     :hd_config => d_config,
     :config => c_ocm,
     :epsilon => 0.01,
-    :check_tuneable => true,
+    :check_tuneable => false,
     :return_full_path => true,
     :max_iterations => 100,
     :banned => banned_points
   }
 }
-# 
-# metric_path_opts = {}
-# metric_path_opts[:v1] = start_point
-# metric_path_opts[:v2] = end_point
-# metric_path_opts[:metric] = MM.ocm
-# metric_path_opts[:config] = c_ocm
-# metric_path_opts[:euclidian_tightness] = 0.0
-# metric_path_opts[:search_func] = MM.get_hd_search
-# metric_path_opts[:search_opts] = point_opts[:search_opts]
-# metric_path_opts[:print_stats] = false
+
 
 winner = MM.find_point_at_distance(point_opts)
 winner[0] == nil ? exit : false

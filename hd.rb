@@ -145,14 +145,14 @@ module HD
     def ** i
       (!i.is_a? Object) ? (raise ArgumentError.new("Supplied class #{i.class} to HD::Ratio.**")) : false
       (i.respond_to? :collect) ? (return ::NArray.to_na(i.to_a.collect {|x| self ** x})) : false
-      Ratio.new(self[0] ** i, self[1] ** i)
+      Ratio[self[0] ** i, self[1] ** i]
     end
     
     def - r
       if r.is_a? Ratio
-        Ratio.new(self[0] * r[1] - self[1] * r[0], r[1] * self[1])
+        Ratio[self[0] * r[1] - self[1] * r[0], r[1] * self[1]]
       elsif r.is_a? Numeric
-        self.-(Ratio.new(r, 1))
+        self.-(Ratio[r, 1])
       else
         raise Exception.new("Supplied class #{r.class} to HD::Ratio.-")
       end
@@ -160,9 +160,9 @@ module HD
     
     def / r
       if r.is_a? HD::Ratio
-        Ratio.new(r[0] * self[1], r[1] * self[0])
+        Ratio[r[0] * self[1], r[1] * self[0]]
       elsif r.is_a? Numeric
-        Ratio.new(self[0], r * self[1])
+        Ratio[self[0], r * self[1]]
       else
         raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio./")
       end
@@ -170,9 +170,9 @@ module HD
     
     def + r
       if r.is_a? HD::Ratio
-        Ratio.new(self[0] * r[1] + self[1] * r[0], self[1] * r[1])
+        Ratio[self[0] * r[1] + self[1] * r[0], self[1] * r[1]]
       elsif r.is_a? Numeric
-        Ratio.new(self[0] + r * self[1], self[1])
+        Ratio[self[0] + r * self[1], self[1]]
       else
         raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio.+")
       end
@@ -185,9 +185,9 @@ module HD
     # Necesssary to test for sets and subsets
     def eql? r
       if r.is_a? Ratio
-        @num == r[0] && @den == r[1]
+        return (self[0] == r[0] && self[1] == r[1])
       elsif r.is_a? Fixnum
-        self.to_f == r
+        return (self.to_f == r)
       else
         raise TypeError.new("Tried to compare a #{r.class} to an HD::Ratio")
       end
@@ -195,7 +195,7 @@ module HD
     
     # Defines the hash to properly test for equality
     def hash
-      [@num, @den].hash
+      [self[0], self[1]].hash
     end
     
     def == r
