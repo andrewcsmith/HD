@@ -243,7 +243,7 @@ module HD
     # Returns the harmonic distance from another point (or from the origin if no point is specified)
     # Defaults are distance from origin and default HDConfig object
     # an alternate origin may be specified, which would allow for distances from other points
-    def distance(origin = HD::Ratio.new, config = HD::HDConfig.new)
+    def distance(origin = HD::Ratio[1,1], config = HD::HDConfig.new)
       weights = config.prime_weights
       me = self.dup
       me[0] *= origin[1]

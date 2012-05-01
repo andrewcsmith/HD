@@ -15,21 +15,32 @@ class NArray
 end
 
 module MM
-  
   def self.get_harmonic_distance_delta(config = HD::HDConfig.new)  
     ->(a, b) {
       if a.is_a? HD::Ratio
         return a.distance(b, config)
-      elsif (a.is_a? NArray) && (a[true, 0].is_a? HD::Ratio) # If the first argument is an NArray of Ratios
-        dist_vectors = NArray.object(a.total)
-        for i in 0...a.total
-          dist_vectors[i] = (a[i].distance(b[i], config)).abs
-        end
-        return dist_vectors
+      elsif a.is_a? Array # If it's an array, we'll need to make it an NArray first
+        a = NArray.to_na(a)
+        b = NArray.to_na(b)
+      elsif a.is_a? NArray # If the first argument is an NArray
+        true # No prep needed
       else
-        raise Exception.new("harmonic_distance_delta only works with NArray or HD::Ratio")
+        raise Exception.new("harmonic_distance_delta only works with NArray or HD::Ratio\nYou passed it an #{a.class}")
       end
+      # If the array is one-dimensional it's probably a single HD::Ratio as a 2D vector
+      # Return the single float distance, same as calling a.distance(b)
+      a.shape == [2] ? (return HD::Ratio[a[0],a[1]].distance(HD::Ratio[b[0],b[1]],config).abs) : false
+      # If it's a vector, then create a vector to hold all the inter-vector distances
+      dist_vectors = NArray.float(a.shape[1])
+      for i in 0...dist_vectors.size
+        dist_vectors[i] = HD::Ratio[a[0,i],a[1,i]].distance(HD::Ratio[b[0,i],b[1,i]], config).abs
+      end
+      return dist_vectors
     }
+  end
+  
+  MM::INTERVAL_FUNCTIONS[:pairs] = lambda do |m|
+    m[true,1...m.shape[1]]
   end
   
   # Convenience method for determining whether or not all the intervals are tuneable

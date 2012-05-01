@@ -2,25 +2,29 @@ require './hd.rb'
 require '../Morphological-Metrics/mm.rb'
 require './deltas.rb'
 
-# I'm trying to get the Ordered Combinatorial Metrics search working properly
+require 'io'
 
-# Our starting point.
+output = File.new('./topology-iii.txt', 'a')
 
-#end_point = NArray[HD.r, HD.r(4,3), HD.r(16,9), HD.r(32,27), HD.r(8,3), HD.r(4,3)]
 # Theme from a cryptozoology
-start_point = NArray[HD.r(2,1), HD.r(11,8), HD.r(11,6), HD.r(4,3), HD.r(2,1), HD.r(11,8), HD.r(3,2), HD.r(11,6), HD.r(4,3), HD.r(3,2)]
+# start_point = NArray[HD.r, HD.r(4,3), HD.r(16,9), HD.r(32,27), HD.r(8,3), HD.r(4,3)]
+# start_point = NArray[HD.r, HD.r(4,3), HD.r(16,9), HD.r(32,27), HD.r(8,3), HD.r(2,1), HD.r(3,2)]
+start_point = HD::Ratio.from_s("1/1 2/1 3/2 2/3 16/9 32/27 8/3 2/1 3/1")
+# end_point = NArray.object(7).fill!(HD::Ratio.new)
+#start_point = NArray.to_na(HD::Ratio.from_s("[1/1, 4/3, 16/9, 32/27, 32/9, 64/27, 128/81, 32/9, 32/27, 16/3, 32/9, 128/27]"))
+
+banned_points = nil
+# banned_points = [HD::Ratio.from_s("[1/1, 4/3, 16/9, 32/27, 32/9, 64/27, 128/81, 32/9, 32/27, 16/3, 32/9, 128/27]"]
 
 # No alterations to the HDConfig
 d_config = HD::HDConfig.new
-d_config.prime_weights = [2,3,5,7,11]
+d_config.prime_weights = [2,3,2,7]
 
-#d_config.tuneable.reject! {|x| x.to_f > 4.0}
+# d_config.tuneable.reject! {|x| x.to_f > 4.0}
 
-d_config.tuneable << HD.r(11,8) << HD.r(16,11) << HD.r(12,11) << HD.r(11,9) << HD.r(9,8)
-d_config.tuneable.sort!
-
-puts "#{d_config.tuneable}"
-puts "Start point tuneable? #{MM.all_tuneable?(start_point, d_config.tuneable)}"
+if !MM.all_tuneable?(start_point, d_config.tuneable)
+  raise Exception.new("NO WAY. START POINT IS NOT TUNEABLE DUDE.\n #{start_point.to_a}")
+end
 
 # Wrap all tuneable intervals to within an octave
 # d_config.tuneable.collect! do |x| 
@@ -32,13 +36,11 @@ puts "Start point tuneable? #{MM.all_tuneable?(start_point, d_config.tuneable)}"
 
 d_config.tuneable.uniq!
 
-# DistConfig alterations:
 c_ocm = MM::DistConfig.new
 c_ocm.scale = :absolute # We're concerned with the leaps in harmonic distance overall
-# One the usage of a specified proc lets the user specify a config object to use (prime_weights, etc)
 c_ocm.intra_delta = MM.get_harmonic_distance_delta(d_config) # We pass the HDConfig to the intra_delta
-# At this point, we are in the logarithmic domain so we can resort to subtraction to find the difference
-c_ocm.inter_delta = MM::DELTA_FUNCTIONS[:abs_diff]
+# The HDConfig is embedded within the intra_delta, which allows it to travel together, and also allows us to continue modifying d_config from the outside.
+c_ocm.inter_delta = MM::DELTA_FUNCTIONS[:abs_diff] # At this point, we are in the logarithmic domain so we can resort to linear difference
 
 c_olm = MM::DistConfig.new
 c_olm.scale = :absolute
@@ -50,9 +52,9 @@ c_ocd = MM::DistConfig.new
 
 mm = MM.get_multimetric([{:metric => MM.ocm, :config => c_ocm, :weight => 0.6}, {:metric => MM.ocd, :config => c_ocd, :weight => 0.4}])
 
-#distance = MM.dist_olm(start_point, end_point, c_ocm) # => 0.2956437247418459
-#puts distance
+# distance = MM.dist_ocm(start_point, end_point, c_ocm) # => 0.349203096128918
 distance = 0.3
+puts "Attempting to pivot around the origin at a distance of #{distance}"
 
 point_opts = {
   :v1 => start_point,
@@ -63,11 +65,11 @@ point_opts = {
   :search_opts => {
     :hd_config => d_config,
     :config => c_ocm,
-    :epsilon => 0.05,
+    :epsilon => 0.01,
     :check_tuneable => true,
     :return_full_path => true,
-    :step_size_subtract => 0.05,
-    :max_iterations => 1000
+    :max_iterations => 100,
+    :banned => banned_points
   }
 }
 # 
@@ -82,14 +84,15 @@ point_opts = {
 # metric_path_opts[:print_stats] = false
 
 winner = MM.find_point_at_distance(point_opts)
-# winner = MM.metric_path(metric_path_opts)
-puts "PATH:"
-winner.each {|x| puts "#{x.to_a}"}
+winner[0] == nil ? exit : false
+
+output.puts "path:"
+winner.each {|x| output.puts "#{x.to_a}"}
 intervals = []
-for i in 1...winner[winner.size-1].total
-  intervals << winner[winner.size-1][i-1] / winner[winner.size-1][i]
+for i in 1...winner[winner.size-1][0].total
+  intervals << winner[winner.size-1][0][i-1] / winner[winner.size-1][0][i]
 end
-puts "\nWe found a winner: #{winner[winner.size-1].to_a}"
-puts "Inner intervals: #{intervals}"
-puts "Target Distance: #{distance}"
-puts "Achieved Distance: #{MM.dist_ocm(start_point, winner[winner.size-1], c_ocm)}"
+output.puts "\nStats: prime_weights #{d_config.prime_weights}; distance #{distance}"
+output.puts "We found a winner: #{winner[winner.size-1].to_a}"
+output.puts "Distance: #{MM.dist_ocm(winner[winner.size-1][0], start_point, c_ocm)}"
+output.puts "Inner intervals: #{intervals}\n\n"
