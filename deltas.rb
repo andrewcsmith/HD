@@ -20,7 +20,7 @@ module MM
     ->(a, b) {
       if a.is_a? HD::Ratio
         return a.distance(b, config)
-      elsif (a.is_a? NArray) && (a[0].is_a? HD::Ratio) # If the first argument is an NArray of Ratios
+      elsif (a.is_a? NArray) && (a[true, 0].is_a? HD::Ratio) # If the first argument is an NArray of Ratios
         dist_vectors = NArray.object(a.total)
         for i in 0...a.total
           dist_vectors[i] = (a[i].distance(b[i], config)).abs
@@ -34,11 +34,11 @@ module MM
   
   # Convenience method for determining whether or not all the intervals are tuneable
   # Provide it with a point to test and an array of tuneable intervals (HD::Ratio objects)
-  def self.all_tuneable?(point, tuneable)
+  def self.all_tuneable?(point, tuneable, range = [HD.r(2,3), HD.r(16,3)])
     for i in 0...point.total
-      # Using the same variable name to note intervals that are out of range for the violin (with D = 1/1)
-      (point[i] < HD.r(2,3) || point[i] > HD.r(16,3)) ? (return false) : 
-      
+      # Using the same variable name to note intervals that are out of range
+      # (Default range settings are for the violin)
+      (point[i] < range[0] || point[i] > range[1]) ? (return false) : 
       # If it's the first interval, we don't care about tuneability
       i == 0 ? next :
       # This is the actual tuneability part
@@ -47,6 +47,18 @@ module MM
     end
     true
   end
+  
+  @get_harmonic_search = ->(opts) {
+    climb_func        = opts[:climb_func]
+    start_vector      = opts[:start_vector]
+    epsilon           = opts[:epsilon]          || 0.01
+    min_step_size     = opts[:min_step_size]    || 0.005
+    start_step_size   = opts[:start_step_size]  || 1.0
+    max_iterations    = opts[:max_iterations]   || 1000
+    return_full_path  = opts[:return_full_path] || false
+    
+    
+  }
 
     ##
     # The goal is to write a greedy A * search algorithm
@@ -103,7 +115,7 @@ module MM
     
     results = []
     
-    current_point = [start_vector.dup, start_distance, 0.0]
+    current_point = [start_vector.dup, start_distance]
     path = [current_point]
     
     log = File.new("results/log #{Time.now}.txt", "w")
@@ -136,8 +148,7 @@ module MM
       
       #warn "Current Result: #{current_result}\nCurrent Path: #{path[-1]}"
       
-      log.puts "Current point is #{current_point[0].to_a} with a distance of #{"%0.3f" % current_result} and distance travelled of #{"%0.3f" % path[-1][2]}"
-      puts "Current point is #{current_point[0].to_a} with a distance of #{"%0.3f" % current_result} and distance travelled of #{"%0.3f" % path[-1][2]}"
+      puts "Current point is #{current_point[0].to_a} with a distance of #{"%0.3f" % current_result}"
       log.puts "Current path is #{path.to_a}"
       # Initialize a dead ends hash entry for the current point if it does not already have one
       dead_ends[current_point[0]] == nil ? dead_ends[current_point[0]] = [] : false
@@ -167,9 +178,9 @@ module MM
           !climb_scores[possible_point] ? climb_scores[possible_point] = climb_func.call(possible_point).to_f : false
           h = climb_scores[possible_point]
           # This g function wants to minimize the euclidian distance travelled between steps
-          g = MM.dist_ulm(possible_point, current_point[0], MM::DistConfig.new({:scale => :relative})).to_f
+          # g = MM.dist_ulm(possible_point, current_point[0], MM::DistConfig.new({:scale => :relative})).to_f
           # The scores are [point, h, g] where h is the heuristic measure of how far we are from the goal and g is the distance we've travelled so far
-          scores << [possible_point, h.to_f, g.to_f]
+          scores << [possible_point, h.to_f]
         end
         # if none of the candidates were cool, then add this interval to the dead ends
         scores == scores_cache ? dead_ends[current_point[0]] << i : false
@@ -190,20 +201,6 @@ module MM
           break
         end
       end
-      
-      # Normalize the values h & g [point, h, g]
-      max_h = (scores.max {|a, b| a[1] <=> b[1]})[1]
-      max_h = 1.0
-      max_g = (scores.max {|a, b| a[2] <=> b[2]})[2]
-      #print "scores: #{scores}"
-      if max_h != 0 && max_g != 0
-        scores.map! {|x| x[1] /= max_h; x[2] /= max_g; x}
-      else
-        raise Exception.new("max_h: #{max_h}\t\tmax_g: #{max_g}")
-      end
-      
-      # The g-score should actually be cumulative
-      scores.map! {|x| x[2] += path[-1][2]; x}
       
       # We sort by h + g, to pick the point that gets us closest
       # scores.sort_by! {|x| x[1] + (x[2] / (path.size + 1.0))}
