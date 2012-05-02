@@ -7,13 +7,6 @@
 
 # Refactored into one Proc: this harmonic_distance_delta will respond correctly to both an HD::Ratio (as in combinatorial metrics) and an NArray (as in linear metrics). 
 
-# Fixing the NArray to_f method
-class NArray
-  def to_f
-    NArray[*self.collect {|x| x.to_f}]
-  end
-end
-
 module MM
   def self.get_harmonic_distance_delta(config = HD::HDConfig.new)  
     ->(a, b) {
@@ -54,8 +47,8 @@ module MM
       # If it's the first interval, we don't care about tuneability
       i == 0 ? next : n = HD::Ratio[*point[true,i-1]]
       # This is the actual tuneability part
-      interval = m / n
-      !((tuneable.include? interval) || (tuneable.include? (interval ** -1))) ? (return false) : next
+      # interval = m / n
+      !((tuneable.include? m / n) || (tuneable.include? n / m)) ? (return false) : next
     end
     true
   end
@@ -170,24 +163,31 @@ module MM
       scores = []
       # print "all candidates: #{all_candidates}"
       # highest_g_cost = Math.sqrt(all_candidates[0].total)
+      tuneable.reject! {|x| x == HD.r}
       for i in tuneable
         interval_score = 0.0
         interval_count = 0
         scores_cache = scores.dup
         # If the current tuneable interval is a dead end, skip it and try the next one
         (dead_ends[current_point[0]].include? i) ? next : false
+        
+        # TODO: Fix these search functions to work with the NVectors
         for j in all_candidates
-          possible_point = current_point[0] * (i ** j)
+          
+          possible_point = current_point[0].mul_ratios (i ** j)
+          
           # Normalize the point
-          (possible_point[0] != HD.r) ? possible_point *= (possible_point[0] ** -1) : false
+          possible_point = (possible_point[true,0] != HD.r) ? (possible_point.collect_ratios {|x| x * HD::Ratio[possible_point[1,0], possible_point[0,0]]}) : possible_point
           # If the possible point is the wrong way, skip it
           !(wrong_way.include? possible_point) ? true : next
+          
           # If the point is not tuneable, skip it, and add it to the wrong_way array to speed up future computations
-          all_tuneable?(possible_point, tuneable) ? true : (wrong_way << possible_point; next)
+          (!check_tuneable_intervals || all_tuneable?(possible_point, tuneable)) ? true : (wrong_way << possible_point; next)
+        
           # Makes a list of what will move get us the closest
           # In the F = G + H of the A * algorithm, this is the H
           # We cache the H distance for all the points so that we don't have to re-calculate it later
-          !climb_scores[possible_point] ? climb_scores[possible_point] = climb_func.call(possible_point).to_f : false
+          !climb_scores[possible_point] ? (climb_scores[possible_point] = climb_func.call(possible_point).to_f) : false
           h = climb_scores[possible_point]
           # This g function wants to minimize the euclidian distance travelled between steps
           # g = MM.dist_ulm(possible_point, current_point[0], MM::DistConfig.new({:scale => :relative})).to_f
@@ -198,6 +198,7 @@ module MM
         scores == scores_cache ? dead_ends[current_point[0]] << i : false
       end
       
+      # Reject anything that takes us nowhere.
       scores.reject! {|x| x[0] == current_point[0]}
       
       # Check to see if the current vector is a dead end

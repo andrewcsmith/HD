@@ -22,9 +22,9 @@ d_config.prime_weights = [2,3,2,7]
 
 # d_config.tuneable.reject! {|x| x.to_f > 4.0}
 
-# if !MM.all_tuneable?(start_point, d_config.tuneable)
-#   raise Exception.new("NO WAY. START POINT IS NOT TUNEABLE DUDE.\n #{start_point.to_a}")
-# end
+if !MM.all_tuneable?(start_point, d_config.tuneable)
+  raise Exception.new("NO WAY. START POINT IS NOT TUNEABLE DUDE.\n #{start_point.to_a}")
+end
 
 # Wrap all tuneable intervals to within an octave
 # d_config.tuneable.collect! do |x| 
@@ -67,7 +67,7 @@ point_opts = {
     :hd_config => d_config,
     :config => c_ocm,
     :epsilon => 0.01,
-    :check_tuneable => false,
+    :check_tuneable => true,
     :return_full_path => true,
     :max_iterations => 100,
     :banned => banned_points
