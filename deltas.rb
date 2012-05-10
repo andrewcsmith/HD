@@ -52,21 +52,8 @@ module MM
     end
     true
   end
-  
-  @get_harmonic_search = ->(opts) {
-    climb_func        = opts[:climb_func]
-    start_vector      = opts[:start_vector]
-    epsilon           = opts[:epsilon]          || 0.01
-    min_step_size     = opts[:min_step_size]    || 0.005
-    start_step_size   = opts[:start_step_size]  || 1.0
-    max_iterations    = opts[:max_iterations]   || 1000
-    return_full_path  = opts[:return_full_path] || false
-    
-    
-  }
 
     ##
-    # The goal is to write a greedy A * search algorithm
     #
     # Takes a hash with the following keys:
     #

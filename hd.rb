@@ -87,7 +87,7 @@ module HD
       r[0] = args[0]
       r[1] = args[1]
       !r[1] ? r[1] = 1 : false
-      r
+      r.reduce
     end
     
     def reduce
@@ -120,7 +120,7 @@ module HD
     end
     
     def abs
-      return Ratio.new(self[0].abs, self[1].abs)
+      return Ratio[self[0].abs, self[1].abs]
     end
     
     def pc_space
@@ -134,9 +134,9 @@ module HD
     
     def * r
       if r.is_a? Ratio
-        Ratio.new(r[0] * self[0], r[1] * self[1])
+        Ratio[r[0] * self[0], r[1] * self[1]]
       elsif r.is_a? Numeric
-        Ratio.new(self[0] * r, self[1])
+        Ratio[self[0] * r, self[1]]
       else
         raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio.*")
       end
@@ -144,7 +144,11 @@ module HD
     
     def ** i
       (!i.is_a? Object) ? (raise ArgumentError.new("Supplied class #{i.class} to HD::Ratio.**")) : false
+      # (i == 1) ? (return self) : false
+      # (i == -1) ? (return Ratio[self[0],self[1]]) : false
+      # (i == 0) ? (return Ratio[1,1]) : false
       (i.respond_to? :collect) ? (return ::NArray.to_na(i.to_a.collect {|x| self ** x})) : false
+      (i < 0) ? (return Ratio[self[1] ** (i*-1), self[0] ** (i*-1)]) : false
       Ratio[self[0] ** i, self[1] ** i]
     end
     
