@@ -44,6 +44,8 @@ class MMTest < Test::Unit::TestCase
     c_ocm.intra_delta = MM.get_harmonic_distance_delta(d_config)
     # At this point, we are in the logarithmic domain so we can resort to subtraction to find the difference
     c_ocm.inter_delta = MM::DELTA_FUNCTIONS[:abs_diff]
+    # This doesn't hurt anything.
+    c_ocm.int_func = MM::INTERVAL_FUNCTIONS[:pairs]
     
     assert_in_delta(0.242, MM.dist_ocm(v1, v2, c_ocm), 0.001)
   end

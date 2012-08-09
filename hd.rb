@@ -79,7 +79,11 @@ module HD
     
     # Default value is 1/1. This make it easier to provide an origin of 1/1 for any distance function.
     def initialize(*args)
-      super
+      if args.is_a? NArray && args.shape = [2]
+        super(args[0], args[1])
+      else
+        super
+      end
     end
     
     def self.[] *args
@@ -111,6 +115,12 @@ module HD
       ::NArray.to_na(ratios)
     end
     
+    def self.from_a a
+      ratios = []
+      a.each {|x| ratios << HD.r(x[0], x[1])}
+      ::NArray.to_na(ratios)
+    end
+    
     def dec
       return self[0].to_f / self[1]
     end
@@ -137,6 +147,8 @@ module HD
         Ratio[r[0] * self[0], r[1] * self[1]]
       elsif r.is_a? Numeric
         Ratio[self[0] * r, self[1]]
+      elsif r.is_a? NArray
+        Ratio[self[0] * r[0], self[1] * r[1]]
       else
         raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio.*")
       end
@@ -250,9 +262,7 @@ module HD
     def distance(origin = HD::Ratio[1,1], config = HD::HDConfig.new)
       weights = config.prime_weights
       me = self.dup
-      me[0] *= origin[1]
-      me[1] *= origin[0]
-      me = me.reduce
+      me /= origin
       factors = me.factors
       warn "Weights and factors are not the same size!" if factors[0].size != weights.size
       # Uses the "city blocks" metric
@@ -297,6 +307,14 @@ module HD
       return "#{self[0]}/#{self[1]}"
     end
   end # Ratio (Class)
+  
+  def self.narray_to_string(n)
+    # out = 
+    # n.shape[1].times do |i|
+    #   out << n[true,i].to_a.to_s
+    # end
+    n.to_a.to_s
+  end
   
   # The chord is essentially just a sorted set that translates some of the basic
   # functions so that they'll work with the Ratio objects. It also will calculate

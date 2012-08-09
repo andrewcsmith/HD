@@ -18,7 +18,8 @@ puts "Starting chord:"
 ch.each {|x| puts x}
 puts
 
-config = HD::HDConfig.new({:prime_weights => [1,3,5]})
+# Constraining to the 3-5 dimensions (octave is ignored)
+config = HD::HDConfig.new({:prime_weights => [1,3]})
 
 # Wrapped to 1.0 <= pitch <= 2.0
 config.pc_only = true

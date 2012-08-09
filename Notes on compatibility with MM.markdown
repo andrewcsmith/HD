@@ -9,7 +9,7 @@ No problems (use default config settings)
 ### magnitude metrics:
 
 #### All Metrics:
-    scale = :relative
+    scale = :absolute
 
 #### Unordered Magnitudes:
 
@@ -21,11 +21,10 @@ We first sum the differences so that we are only working with a single number
 
 We find the inter-vector delta for each corresponding pair, thus we pass the inter_delta function two arrays of pairs
 
-	inter_delta = ->(a, b) { new = NArray.object(a.total)
-		i = 0
-		while i < a.total do
+	inter_delta = ->(a, b) { 
+		new = NArray.object(a.total)
+		for i in 0...a.total
 			new[i] = (Math.log2((a[i]/b[i]).to_f).abs)
-			i += 1
 		end
 		new	
 	}
@@ -40,34 +39,32 @@ We collect all the possible combinations and compare it pair by pair (rather tha
 
 For Linear Magnitudes, we pass two vectors to the delta function to find the deltas between each internal pair in series.
 
-	intra_delta = ->(a, b) { new = NArray.object(a.total)
-		i = 0
-		while i < a.total do
+	intra_delta = ->(a, b) { 
+		new = NArray.object(a.total)
+		for i in 0...a.total
 			new[i] = (Math.log2((a[i]/b[i]).to_f).abs)
-			i += 1
 		end
 		new	
 	}
 
-harmonic distance:
-==================
+## Harmonic Distance:
 
-intra_delta = :distance
+see deltas.rb
 
-direction metrics:
+### direction metrics
 
-This does not entirely make sense. Although, perhaps, distance decreasing or increasing?
+Perhaps, one could measure increasing or decreasing harmonic distance. We'll figure this out later though.
 
-ocm & ucm: no apparent problems
-olm & ulm: currently, the two vectors must be the same length
+### OCM
 
-The steps you must go through to change the prime weights:
+Necessary to use an intra_delta that is basically just :distance with the addition of a config option, to specify and control prime_weights and other parameters.
+intra_delta = get_harmonic_distance_delta_single
+inter_delta = MM::DELTA_FUNCTIONS[:abs_diff] 
 
-(where hdc is an HD::HDConfig and c is an MM::DistConfig)
+### OLM
 
-d = lambda {|m, n| m.distance(n, hdc)}
-c.intra_delta = d
-MM.vector_delta(m, c.order, c.intra_delta, nil) # => [ 1.584962500721156, 1.584962500721156, Infinity, Infinity ] 
+intra_delta = get_harmonic_distance_delta (See deltas.rb)
+inter_delta = MM::DELTA_FUNCTIONS[:abs_diff]
 
 SEARCH FUNCTIONS!
 ================

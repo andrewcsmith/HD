@@ -18,9 +18,18 @@ banned_points = nil
 
 # No alterations to the HDConfig
 d_config = HD::HDConfig.new
-d_config.prime_weights = [2,3,2,7]
+d_config.prime_weights = [2,3,5,7,11]
 
-# d_config.tuneable.reject! {|x| x.to_f > 4.0}
+# Reject all tuneable intervals that are past the prime limit
+d_config.tuneable.reject! {|x| (x.distance(HD.r, d_config) ** -1) == 0}
+# Sort the tuneable intervals by their HD-functions
+d_config.tuneable.sort_by! {|x| x.distance(HD.r, d_config)}
+# d_config.tuneable.each {|x| puts "#{x}: #{x.distance(HD.r, d_config)}"}
+
+# The first returned value of the scale_proc should be the max distance. This is really only relevant for linear magnitude metrics.
+scale_proc = ->(m_diff, n_diff) {
+  return [6.977279923499917, 1, 1]
+}
 
 if !MM.all_tuneable?(start_point, d_config.tuneable)
   raise Exception.new("NO WAY. START POINT IS NOT TUNEABLE DUDE.\n #{start_point.to_a}")
@@ -38,12 +47,14 @@ d_config.tuneable.uniq!
 
 c_ocm = MM::DistConfig.new
 c_ocm.scale = :absolute # We're concerned with the leaps in harmonic distance overall
+c_ocm.scale = scale_proc
 c_ocm.intra_delta = MM.get_harmonic_distance_delta(d_config) # We pass the HDConfig to the intra_delta
 # The HDConfig is embedded within the intra_delta, which allows it to travel together, and also allows us to continue modifying d_config from the outside.
 c_ocm.inter_delta = MM::DELTA_FUNCTIONS[:abs_diff] # At this point, we are in the logarithmic domain so we can resort to linear difference
 
 c_olm = MM::DistConfig.new
-c_olm.scale = :absolute
+# c_olm.scale = :absolute
+c_ocm.scale = scale_proc
 c_olm.intra_delta = MM.get_harmonic_distance_delta(d_config)
 # At this point, we are in the logarithmic domain so we can resort to subtraction to find the difference
 c_olm.inter_delta = MM::DELTA_FUNCTIONS[:abs_diff]
@@ -54,37 +65,36 @@ c_ocd = MM::DistConfig.new
 mm = MM.get_multimetric([{:metric => MM.ocm, :config => c_ocm, :weight => 0.6}, {:metric => MM.ocd, :config => c_ocd, :weight => 0.4}])
 
 # distance = MM.dist_ocm(start_point, end_point, c_ocm) # => 0.349203096128918
-distance = 0.3
+distance = 0.34
 puts "Attempting to pivot around the origin at a distance of #{distance}"
 
+# We are working with linear magnitude at the moment.
 point_opts = {
   :v1 => start_point,
   :d => distance,
-  :dist_func => MM.ocm,
-  :config => c_ocm,
-  :search_func => MM.get_hd_search,
+  :dist_func => MM.olm,
+  :config => c_olm,
+  :search_func => MM.get_stochastic_hd_search,
+  :set_size => 2,
   :search_opts => {
     :hd_config => d_config,
-    :config => c_ocm,
-    :epsilon => 0.01,
+    :config => c_olm,
+    :epsilon => 0.03,
     :check_tuneable => true,
-    :return_full_path => true,
+    :return_full_path => false,
     :max_iterations => 100,
     :banned => banned_points
   }
 }
 
 
-winner = MM.find_point_at_distance(point_opts)
-winner[0] == nil ? exit : false
+winner = MM.set_at_distance(point_opts)
 
-output.puts "path:"
+# winner[0] == nil ? exit : false
+# 
+output.puts "set:"
 winner.each {|x| output.puts "#{x.to_a}"}
-intervals = []
-for i in 1...winner[winner.size-1][0].total
-  intervals << winner[winner.size-1][0][i-1] / winner[winner.size-1][0][i]
-end
-output.puts "\nStats: prime_weights #{d_config.prime_weights}; distance #{distance}"
-output.puts "We found a winner: #{winner[winner.size-1].to_a}"
-output.puts "Distance: #{MM.dist_ocm(winner[winner.size-1][0], start_point, c_ocm)}"
-output.puts "Inner intervals: #{intervals}\n\n"
+# 
+# output.puts "\nStats: prime_weights #{d_config.prime_weights}; distance #{distance}"
+# output.puts "We found a winner: #{winner[winner.size-1].to_a}"
+# output.puts "Distance: #{MM.dist_ocm(winner[winner.size-1][0], start_point, c_ocm)}"
