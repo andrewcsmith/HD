@@ -18,7 +18,7 @@ module MM
     hd_config          = opts[:hd_config]          || HD::HDConfig.new
     goal_vector        = opts[:goal_vector]
 
-    tuneable_data      = opts[:tuneable_data]     || get_tuneable_data(start_vector, hd_config)
+    tuneable_data      = opts[:tuneable_data]     || get_tuneable_data(NArray.to_na(start_vector), hd_config)
     banned_points      = opts[:banned_points]     || {}
 
     path = []
@@ -51,24 +51,36 @@ module MM
           interval_index = 0
         end
       
-        begin
+        begin          
           ind_x, ind_y = sort_by_cost(cost, interval_index)
           best_interval = tuneable_data[true,0,ind_x,ind_y]
-          path << change_inner_interval(current_point, ind_y, HD.r(*best_interval))
+          # path << change_inner_interval(current_point, ind_y, HD.r(*best_interval))
+          possible_interval = change_inner_interval(current_point, ind_y, HD.r(*best_interval))
           
-          while banned_points.has_key? HD.narray_to_string path[-1]
+          while banned_points.has_key? HD.narray_to_string possible_interval
             interval_index += 1
             if interval_index >= cost.size
+              banned_points[HD.narray_to_string possible_interval] = 1
+              bad = path.pop
+              banned_points[HD.narray_to_string bad] = 1
+              current_point = path[-1]
+              initial_run = true
+              current_cost = NMath.sqrt(((get_angle(path[-1], start_vector, hd_config)[0..1] - goal_vector) ** 2).sum)
               break
             end
             ind_x, ind_y = sort_by_cost(cost, interval_index)
             best_interval = tuneable_data[true,0,ind_x,ind_y]
-            path[-1] = change_inner_interval(current_point, ind_y, HD.r(*best_interval))
+            possible_interval = change_inner_interval(current_point,ind_y,HD.r(*best_interval))
           end
+          
+          if banned_points.has_key? HD.narray_to_string possible_interval
+            next
+          end
+          path << possible_interval
+
         rescue IndexError => er
-          # puts "\nIndexError: #{er.message}"
-          # print er.backtrace.join("\n")
-          # puts
+          puts "\nIndexError: #{er.message}"
+          print er.backtrace.join("\n")
           banned_points[HD.narray_to_string path[-1]] = path[-1]
           path.pop
           current_point = path[-1]
@@ -104,8 +116,9 @@ module MM
         end
         # puts "Now #{current_cost} away at #{current_point.to_a}"
       rescue RangeError => er
-        # puts "\nRangeError -- skipping this one"
-        # print er.backtrace.join("\n")
+        puts "\nRangeError -- skipping this one"
+        puts er.message
+        print er.backtrace.join("\n")
         banned_points[HD.narray_to_string path[-1]] = path[-1]
         path.pop
         initial_run = false
@@ -160,7 +173,10 @@ begin
 
   hd_config = HD::HDConfig.new
   hd_config.prime_weights = [2.0,3.0,5.0,7.0,11.0]
-  start_vector = HD::Ratio.from_s "1/1 2/1 3/2 2/3 16/9 32/27 8/3 2/1 3/1"
+  # start_vector = HD::Ratio.from_s "1/1 2/1 3/2 2/3 16/9 32/27 8/3 2/1 3/1"
+  start_vector = NArray[[1, 1], [1, 1], [8, 1], [28, 3], [98, 9], [196, 15], [1568, 75], [392, 25], [1176, 25]]
+  # start_vector = NArray[[1, 1], [1, 1], [8, 1], [64, 7], [512, 49], [4096, 147], [32768, 735], [8192, 245], [12288, 245]]
+  # distance: 0.3492063492028571
 
   opts = {}
   opts[:epsilon] = 0.44444444 / 28.0
@@ -180,25 +196,40 @@ begin
   # results << [MM.get_olm_search.call(opts)]
   # results[-1] << MM.get_angle(results[-1][0], start_vector, hd_config)
   # print results[-1].to_a
-
+  # hc = 0.09653419811914568
+  # ec = -0.3355983058912564
+  hc = -0.01021989303518335 
+  ec = -0.021476582975154146 
+  opts[:goal_vector] = NArray[hc, ec]
+  r = MM.get_olm_search.call(opts)
+  results << [r[0]]
+  results[-1] << MM.get_angle(results[-1][0], start_vector, hd_config)
+  results[-1] << r[1]
+  if r[1][:failed]
+    f.print "\n\nFAILED with the following stats"
+  end
+  f.puts "\n\nRESULTS:\n#{results[-1][0].to_a}\n\n%.3f\t%.3f\t%.3f\t%.3f\t%.3f" % results[-1][1].to_a
+  # f.puts "Goal Distance: #{distance}"
+  f.puts "Cost: #{results[-1][2][:cost]}\n\n"
+  opts[:tuneable_data] = r[1][:tuneable_data]
   # 2.times do |t|
-    10.upto(14) do |i|
-      distance = interval * i
-      hc = NMath.cos(angle) * distance
-      ec = NMath.sin(angle) * distance
-      opts[:goal_vector] = NArray[hc, ec] # This takes (y, x) for some stupid reason. Fix this.
-      r = MM.get_olm_search.call(opts)
-      results << [r[0]]
-      results[-1] << MM.get_angle(results[-1][0], start_vector, hd_config)
-      results[-1] << r[1]
-      if r[1][:failed]
-        f.print "\n\nFAILED with the following stats"
-      end
-      f.puts "\n\nRESULTS for #{i}:\n#{results[-1][0].to_a}\n\n%.3f\t%.3f\t%.3f\t%.3f\t%.3f" % results[-1][1].to_a
-      f.puts "Goal Distance: #{distance}"
-      f.puts "Cost: #{results[-1][2][:cost]}\n\n"
-      opts[:tuneable_data] = r[1][:tuneable_data]
-    end
+    # 12.upto(14) do |i|
+    #   distance = interval * i
+    #   hc = NMath.cos(angle) * distance
+    #   ec = NMath.sin(angle) * distance
+    #   opts[:goal_vector] = NArray[hc, ec] # This takes (y, x) for some stupid reason. Fix this.
+    #   r = MM.get_olm_search.call(opts)
+    #   results << [r[0]]
+    #   results[-1] << MM.get_angle(results[-1][0], start_vector, hd_config)
+    #   results[-1] << r[1]
+    #   if r[1][:failed]
+    #     f.print "\n\nFAILED with the following stats"
+    #   end
+    #   f.puts "\n\nRESULTS for #{i}:\n#{results[-1][0].to_a}\n\n%.3f\t%.3f\t%.3f\t%.3f\t%.3f" % results[-1][1].to_a
+    #   f.puts "Goal Distance: #{distance}"
+    #   f.puts "Cost: #{results[-1][2][:cost]}\n\n"
+    #   opts[:tuneable_data] = r[1][:tuneable_data]
+    # end
   #   angle += NMath::PI
   # end
 ensure
