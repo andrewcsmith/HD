@@ -7,6 +7,8 @@
 
 # Refactored into one Proc: this harmonic_distance_delta will respond correctly to both an HD::Ratio (as in combinatorial metrics) and an NArray (as in linear metrics). 
 
+require '../Morphological-Metrics/mm.rb'
+
 module MM
   def self.get_harmonic_distance_delta(config = HD::HDConfig.new)  
     ->(a, b) {
@@ -34,6 +36,7 @@ module MM
   end
   
   # This gives a vector (of length v.length - 1) with the change in intervals from entry to entry
+  # For use as a delta in MM.vector_delta
   def self.get_inner_interval_delta(config = HD::HDConfig.new)
     ->(a, b) {
       if a.is_a? HD::Ratio
@@ -46,7 +49,7 @@ module MM
       else
         raise Exception.new("get_inner_interval_delta only works with NArray or HD::Ratio\nYou passed it an #{a.class}")
       end
-      dist_vectors = NArray.int(a.shape[0],a.shape[1]-1) # the vector needs to be one shorter than the source
+      dist_vectors = NArray.int(a.shape[0],a.shape[1]) # the vector needs to be one shorter than the source
       for i in 0...dist_vectors.shape[1]
         dist_vectors[true,i] = HD.r(*a[true,i]) / HD.r(*b[true,i])
       end
@@ -66,6 +69,67 @@ module MM
   end
   
   MM::INTERVAL_FUNCTIONS[:pairs] = lambda {|m| m[true,1...m.shape[1]].reshape(2,m.shape[1]-1)}
+  
+  def self.get_lowest_old(v, o, hd_config = HD::HDConfig.new)
+    o_dec = o[0,true].to_f / o[1,true].to_f
+    
+    out = []
+    delta = get_inner_interval_delta(hd_config  )
+    int_func = MM::INTERVAL_FUNCTIONS[:pairs]
+    # TODO: Fix this vector_delta so that it gives the FULL length
+    # it's currently leaving off the last interval
+    inner_v = vector_delta(v, 1, delta, int_func)
+    possible_vectors = []
+    
+    [-1,1].repeated_permutation(inner_v.shape[1]) do |x|
+      # Create NArray to hold the possible vector
+      possible_inner_v = NArray.int(*inner_v.shape)
+      
+      # Iterate through each inner_v and get the exponentiaion
+      (0...inner_v.shape[1]).each do |y|
+        r = HD.r(*inner_v[true,y])
+        possible_inner_v[true,y] = r ** x[y]
+      end
+      
+      # Convert this back into a normalized full vector (so we can check tuneability)
+      v_cand = vector_from_differential possible_inner_v
+      if all_tuneable?(v_cand, hd_config.tuneable)
+        # puts "tuneable: #{v_cand.to_a}"
+        possible_vectors << v_cand
+      end
+    end
+    possible_vectors.sort_by! do |x|
+      x_dec = x[0,true].to_f / x[1,true].to_f
+      MM.dist_old(x_dec, o_dec)
+    end
+    possible_vectors
+  end
+  
+  # def self.get_lowest_ocd(v, o, hd_config = HD::HDConfig.new)
+  #   o_dec = o[0,true].to_f / o[1,true].to_f
+  #   
+  #   out = []
+  #   delta = get_inner_interval_delta(hd_config  )
+  #   int_func = MM::INTERVAL_FUNCTIONS[:pairs]
+  #   # TODO: Fix this vector_delta so that it gives the FULL length
+  #   # it's currently leaving off the last interval
+  #   inner_v = vector_delta(v, 1, delta, int_func).to_a
+  #   possible_vectors = []
+  #   
+  #   inner_v.permutation(inner_v.size).each do |x|
+  #     x = NArray.to_na(x)
+  #     v_cand = vector_from_differential x
+  #     if all_tuneable?(v_cand, hd_config.tuneable)
+  #       # puts "tuneable: #{v_cand.to_a}"
+  #       possible_vectors << v_cand
+  #     end
+  #   end
+  #   possible_vectors.sort_by! do |x|
+  #     x_dec = x[0,true].to_f / x[1,true].to_f
+  #     MM.dist_ocd(x_dec, o_dec)
+  #   end
+  #   possible_vectors
+  # end 
   
   # Convenience method for determining whether or not all the intervals are tuneable
   # Provide it with a point to test and an array of tuneable intervals (HD::Ratio objects)
