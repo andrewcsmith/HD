@@ -35,6 +35,31 @@ module MM
     }
   end
   
+  def self.get_frequencies_from_vector(v, base = 440.0)
+    a = NArray.float(3,v.shape[1])
+    a[0..1,true] = v
+    a[2,true] = a[0,true] / a[1,true]
+    
+    b = a[2,true] * base
+    b
+  end
+  
+  def self.get_cents_from_vector(v)
+    if !v.is_a? NArray
+      v = NArray.to_na(v)
+    end
+    a = NArray.float(3,v.shape[1])
+    a[0..1,true] = v
+    a[2,true] = a[0,true] / a[1,true]
+    
+    # b is a vector of the cents deviations from 1/1, and then the deviations from the nearest et pitch
+    b = NArray.float(2,a.shape[1])
+    b[0,true] = NMath.log2(a[2,true]) * 1200.0
+    
+    b[1,true] = b[0,true].collect {|x| (x.round(-2) - x).round(1) * -1}
+    b
+  end
+  
   # This gives a vector (of length v.length - 1) with the change in intervals from entry to entry
   # For use as a delta in MM.vector_delta
   def self.get_inner_interval_delta(config = HD::HDConfig.new)
@@ -70,11 +95,14 @@ module MM
   
   MM::INTERVAL_FUNCTIONS[:pairs] = lambda {|m| m[true,1...m.shape[1]].reshape(2,m.shape[1]-1)}
   
-  def self.get_lowest_old(v, o, hd_config = HD::HDConfig.new)
+  # Takes two vectors [v, o] and flips the inner intervals back and forth such that
+  # the vector v has the lowest possible distance (OLD) from vector o. The distance
+  # of the OLM between both vectors is unaffected.
+  def self.get_lowest_old(v, o, hd_config = HD::HDConfig.new, ignore_tuneable = false, tuned_range = [HD.r(2,3), HD.r(16,1)])
     o_dec = o[0,true].to_f / o[1,true].to_f
     
     out = []
-    delta = get_inner_interval_delta(hd_config  )
+    delta = get_inner_interval_delta(hd_config)
     int_func = MM::INTERVAL_FUNCTIONS[:pairs]
     # TODO: Fix this vector_delta so that it gives the FULL length
     # it's currently leaving off the last interval
@@ -85,15 +113,18 @@ module MM
       # Create NArray to hold the possible vector
       possible_inner_v = NArray.int(*inner_v.shape)
       
-      # Iterate through each inner_v and get the exponentiaion
+      # Iterate through each inner_v with each permutation of exponents
       (0...inner_v.shape[1]).each do |y|
+        # Must convert to a HD::Ratio so that ** works like we want it to
         r = HD.r(*inner_v[true,y])
         possible_inner_v[true,y] = r ** x[y]
       end
       
       # Convert this back into a normalized full vector (so we can check tuneability)
       v_cand = vector_from_differential possible_inner_v
-      if all_tuneable?(v_cand, hd_config.tuneable)
+      # The range for this function must be 4 octaves above the D string, likely played with art. harmonics
+      # so that it is possible to play every vector.
+      if ignore_tuneable || all_tuneable?(v_cand, hd_config.tuneable, tuned_range)
         # puts "tuneable: #{v_cand.to_a}"
         possible_vectors << v_cand
       end

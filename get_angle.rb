@@ -32,7 +32,7 @@ module MM
       dim = a.shape[1] # Get the length of the series of ratios
       res = NArray.float(dim) # This is where we'll store our vectors
 
-      dim.times { |i| res[i] = (Math.log2(a[true,i][0].to_f / a[true,i][1].to_f) - Math.log2(b[true,i][0].to_f / b[true,i][1].to_f)).abs }
+      dim.times { |i| res[i] = (Math.log2(a[0,i].to_f / a[1,i].to_f) - Math.log2(b[0,i].to_f / b[1,i].to_f)).abs }
       return res
     }
   end
@@ -46,6 +46,13 @@ module MM
   def self.get_angle(v, o, cfg = HD::HDConfig.new)
     
     lowest = NArray.int(*v.shape).fill 1
+    highest = NArray.int(*v.shape).fill 1
+    1..highest.shape[1] do |i|
+      if i % 2 == 0
+        next
+      end
+      highest[true,i] = HD.r(8,1)
+    end
   
     cfg.tuneable.reject! {|x| (x.distance(HD.r, cfg) ** -1) == 0}
     cfg.tuneable.reject! {|x| Math.log2(x.to_f) > 3.0} # Reject everything that's over 3 octaves (the range of the violin, practically)

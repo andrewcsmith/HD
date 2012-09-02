@@ -27,13 +27,15 @@ module MM
     tuneable.sort_by! {|x| x.distance(HD.r, hd_config)}
     tuneable.reject! {|x| (x.distance(HD.r, hd_config) ** -1) == 0}
 
-    lowest = NArray.int(*start_vector.shape)
-    lowest.fill! 1
     current_point = start_vector
+    # See 'get_tuneable_data.rb' for more info on the cost function
     current_cost = NMath.sqrt(((get_angle(current_point, start_vector, hd_config)[0..1] - goal_vector) ** 2).sum)
+    
+    # Assign our bests, in case we fail
     best_point_so_far = current_point
     best_cost_so_far = current_cost
     
+    # Add the start to the path as the first element
     path << start_vector
     
     initial_run = true
@@ -44,21 +46,26 @@ module MM
         # puts "Iteration #{iter}"
         # puts "Now #{current_cost} away at #{current_point.to_a}"
         print "\rIteration #{iter}: #{current_cost} away at #{current_point.to_a}"
+        
+        # The cost vector is just a summation of all the possible movements
         cost = NMath.sqrt(((tuneable_data[true,1,true,true] - goal_vector) ** 2).sum(0))
 
         # If this is the first run-through, keep the interval index the same
-        if initial_run 
+        if initial_run
           interval_index = 0
         end
       
-        begin          
+        # Block tests for IndexError
+        begin
           ind_x, ind_y = sort_by_cost(cost, interval_index)
           best_interval = tuneable_data[true,0,ind_x,ind_y]
           # path << change_inner_interval(current_point, ind_y, HD.r(*best_interval))
           possible_interval = change_inner_interval(current_point, ind_y, HD.r(*best_interval))
           
-          while banned_points.has_key? HD.narray_to_string possible_interval
+          # Check to see whether the prospective point has beeen either banned or already added (no infinite loop plz)
+          while (banned_points.has_key? HD.narray_to_string possible_interval) || (path.include? possible_interval)
             interval_index += 1
+            # If we've exhausted all possible intervals, add it to the list of banned points and step back
             if interval_index >= cost.size
               banned_points[HD.narray_to_string possible_interval] = 1
               bad = path.pop
@@ -90,17 +97,49 @@ module MM
         end
       
         # print "Trying interval #{HD.r(*best_interval)} at #{ind_y}"
+        
+        begin
+          ang = get_angle(path[-1], start_vector, hd_config)
+        rescue RangeError => er
+          puts "\nSeem to have a RangeError -- reordering"
+          inner_v = vector_delta(path[-1], 1, get_inner_interval_delta(hd_config), MM::INTERVAL_FUNCTIONS[:pairs])
+          # The following flips all the inner intervals of the second half of the vector.
+          # This doesn't really change the outcome if the OLD is properly used.
+          ((inner_v.shape[1]/2)...inner_v.shape[1]).times do |x|
+            inner_v[true,x] = NArray[inner_v[true,x][1], inner_v[true,x][0]]
+          end
+          path[-1] = vector_from_differential inner_v
+          puts "#{path[-1].to_a}"
+          retry
+        end
+        ang = ang[0..1]
+        ang = (ang - goal_vector) ** 2
+        ang = ang.sum
+        prospective_cost = NMath.sqrt(ang)
       
-        if NMath.sqrt(((get_angle(path[-1], start_vector, hd_config)[0..1] - goal_vector) ** 2).sum) < current_cost
-          current_cost = NMath.sqrt(((get_angle(path[-1], start_vector, hd_config)[0..1] - goal_vector) ** 2).sum)
+        # test to see if the prospective point gets us any closer
+        if prospective_cost < current_cost
+          current_cost = prospective_cost
+        # if it only moves us back a little, give it a shot (after all, we'll pick the best first soon)
+        # TODO: Compare the new not-that-bad cost to the cost of the path's immediate predecessor.
+        # If picking the current result would be less of a setback than popping and moving back a step,
+        # then just move back a little – the next choice will be the best-first anyway.
         else
-          banned_points[HD.narray_to_string path[-1]] = path[-1]
-          path.pop
-          initial_run = false
-          # puts "banning #{banned_points[-1].to_a}"
-          next
+          # Calculate the cost of the one before the prospective choice
+          previous_cost = NMath.sqrt(((get_angle(path[-2], start_vector, hd_config)[0..1] - goal_vector) ** 2).sum)
+          if (prospective_cost - current_cost) < (prospective_cost - previous_cost)
+            current_cost = prospective_cost
+          else
+            # if not, we don't want to move further away
+            banned_points[HD.narray_to_string path[-1]] = path[-1]
+            path.pop
+            initial_run = false
+            # puts "banning #{banned_points[-1].to_a}"
+            next
+          end
         end
    
+        # if we're within a margin of tolerance, return
         if current_cost < epsilon
           current_point = path[-1]
           break
@@ -115,14 +154,15 @@ module MM
           initial_run = true
         end
         # puts "Now #{current_cost} away at #{current_point.to_a}"
-      rescue RangeError => er
-        puts "\nRangeError -- skipping this one"
-        puts er.message
-        print er.backtrace.join("\n")
-        banned_points[HD.narray_to_string path[-1]] = path[-1]
-        path.pop
-        initial_run = false
-        next
+      # rescue RangeError => er
+      #   puts "\nRangeError -- trying inversions"
+      #   puts er.message
+      #   # current_point = MM.vector_delta(path[-1 ], 1, MM.get_inner_interval_delta(hd_config), MM::INTERVAL_FUNCTIONS[:pairs])
+      #   print er.backtrace.join("\n")
+      #   banned_points[HD.narray_to_string path[-1]] = path[-1]
+      #   path.pop
+      #   initial_run = false
+      #   next
       end
     end
     data = {
@@ -173,45 +213,46 @@ begin
 
   hd_config = HD::HDConfig.new
   hd_config.prime_weights = [2.0,3.0,5.0,7.0,11.0]
-  # start_vector = HD::Ratio.from_s "1/1 2/1 3/2 2/3 16/9 32/27 8/3 2/1 3/1"
-  start_vector = NArray[[1, 1], [1, 1], [8, 1], [28, 3], [98, 9], [196, 15], [1568, 75], [392, 25], [1176, 25]]
-  # start_vector = NArray[[1, 1], [1, 1], [8, 1], [64, 7], [512, 49], [4096, 147], [32768, 735], [8192, 245], [12288, 245]]
-  # distance: 0.3492063492028571
+  start_vector = HD::Ratio.from_s "1/1 2/1 3/2 2/3 16/9 32/27 8/3 2/1 3/1"
 
   opts = {}
   opts[:epsilon] = 0.44444444 / 28.0
   opts[:hd_config] = hd_config
   opts[:start_vector] = start_vector
-  opts[:max_iterations] = 100000
-  angle = (-73.952222 / 180.0) * NMath::PI
+  opts[:max_iterations] = 1000
+  
   interval = 0.44444444444 / 14.0
 
   # This gives you the inverse
-  # angle += NMath::PI
+  looking_for_inverse = false
+  looking_for_inverse ? angle += NMath::PI : false
 
-  # distance = 0.346895
-  # y = NMath.sin(angle) * distance
-  # x = NMath.cos(angle) * distance
-  # opts[:goal_vector] = NArray[x, y]
-  # results << [MM.get_olm_search.call(opts)]
-  # results[-1] << MM.get_angle(results[-1][0], start_vector, hd_config)
-  # print results[-1].to_a
-  # hc = 0.09653419811914568
-  # ec = -0.3355983058912564
-  hc = -0.01021989303518335 
-  ec = -0.021476582975154146 
-  opts[:goal_vector] = NArray[hc, ec]
-  r = MM.get_olm_search.call(opts)
-  results << [r[0]]
-  results[-1] << MM.get_angle(results[-1][0], start_vector, hd_config)
-  results[-1] << r[1]
-  if r[1][:failed]
-    f.print "\n\nFAILED with the following stats"
+  # Trying for #13 and #14 w-nw
+  [0].each do |x|
+    distance = 0.4126984126942857 + (x * interval)
+    angle = (-73.952222 / 180.0) * NMath::PI
+    ec = NMath.sin(angle) * distance
+    hc = NMath.cos(angle) * distance
+    
+    #  ACS:New for this test
+    # ec = -0.04468230705093712
+    # hc = 0.0037525148522866564
+    # # Start is #12 w-nw
+    # opts[:start_vector] = NArray[[1, 1], [1, 1], [8, 1], [20, 3], [160, 21], [40, 7], [320, 49], [240, 49], [160, 147]]
+  
+    opts[:goal_vector] = NArray[hc, ec]
+    r = MM.get_olm_search.call(opts)
+    results << [r[0]]
+    results[-1] << MM.get_angle(results[-1][0], start_vector, hd_config)
+    results[-1] << r[1]
+    if r[1][:failed]
+      f.print "\n\nFAILED with the following stats"
+    end
+    f.puts "\n\nRESULTS:\n#{results[-1][0].to_a}\n\n%.3f\t%.3f\t%.3f\t%.3f\t%.3f" % results[-1][1].to_a
+    # f.puts "Goal Distance: #{distance}"
+    f.puts "Cost: #{results[-1][2][:cost]}\n\n"
+    opts[:tuneable_data] = r[1][:tuneable_data]
   end
-  f.puts "\n\nRESULTS:\n#{results[-1][0].to_a}\n\n%.3f\t%.3f\t%.3f\t%.3f\t%.3f" % results[-1][1].to_a
-  # f.puts "Goal Distance: #{distance}"
-  f.puts "Cost: #{results[-1][2][:cost]}\n\n"
-  opts[:tuneable_data] = r[1][:tuneable_data]
   # 2.times do |t|
     # 12.upto(14) do |i|
     #   distance = interval * i

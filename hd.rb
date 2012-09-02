@@ -76,6 +76,7 @@ module HD
   class Ratio < NVector
     # attr_reader :num, :den
     include Enumerable
+    require 'rational'
     
     # Default value is 1/1. This make it easier to provide an origin of 1/1 for any distance function.
     def initialize(*args)
@@ -176,7 +177,8 @@ module HD
     
     def / r
       if r.is_a? HD::Ratio
-        Ratio[r[0] * self[1], r[1] * self[0]]
+        a = Rational(self[0], self[1]) / Rational(r[0], r[1])
+        Ratio[a.numerator, a.denominator]
       elsif r.is_a? Numeric
         Ratio[self[0], r * self[1]]
       else
