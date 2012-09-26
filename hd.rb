@@ -69,6 +69,14 @@ module HD
       end
     end
     
+    def reject_untuneable_intervals!
+      self.tuneable.reject! {|x| (x.distance(HD.r, self) ** -1) == 0}
+    end
+    
+    def reject_untuneable_intervals
+      self.dup.reject_untuneable_intervals!
+    end
+    
   end # HDConfig (class)
   
   # Ratio class, which defines a point in harmonic space.
@@ -242,10 +250,7 @@ module HD
     
     # For each of the num and den, provides a list of exponents. Primes are only up through the size of PRIMES.
     def factors
-      num = self[0]
-      den = self[1]
-      exponents = [num, den]
-      exponents.map! do |y|
+      exponents = self.map do |y|
         PRIMES.map do |x|
           exp_count = 0
           while y % x == 0
@@ -262,10 +267,12 @@ module HD
     # Defaults are distance from origin and default HDConfig object
     # an alternate origin may be specified, which would allow for distances from other points
     def distance(origin = HD::Ratio[1,1], config = HD::HDConfig.new)
+      # Set up the variables
       weights = config.prime_weights
       me = self.dup
       me /= origin
       factors = me.factors
+      
       warn "Weights and factors are not the same size!" if factors[0].size != weights.size
       # Uses the "city blocks" metric
       city_blocks = 1
