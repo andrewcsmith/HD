@@ -6,7 +6,8 @@
 module HD
   require 'set'
   require 'narray'
-  PRIMES = [2,3,5,7,11,13,17,19,23]
+  # Prime numbers up to 23. That's all I'm composing with.
+  PRIMES = ::NArray[2.0,3,5,7,11,13,17,19,23]
   
   # Had to add this to the NArray class for the olm & ulm, regarding harmonic distance
   class NArray
@@ -26,22 +27,18 @@ module HD
     attr_accessor :prime_weights, :pc_only, :tuneable
     
     def initialize(options = { })
-      @prime_weights =    options[:prime_weights] || PRIMES.dup
-      @pc_only =          options[:pc_only]       || false
-      @tuneable_file =    options[:tuneable_file] || "tuneable.txt"
+      @options = options
+      @prime_weights =    ::NArray.to_na(options[:prime_weights]) || PRIMES.dup
+      @pc_only =          options[:pc_only]                       || false
+      @tuneable_file =    options[:tuneable_file]                 || "tuneable.txt"
       
-      if prime_weights.size != PRIMES.size
+      if @prime_weights.size != PRIMES.size
         PRIMES.size.times do |i|
-          if prime_weights[i] == nil
-            prime_weights[i] = 0.0
+          if @prime_weights[i] == nil
+            @prime_weights[i] = 0.0
           end
         end
-        @prime_weights = prime_weights
-      else
-        @prime_weights = prime_weights
       end
-      
-      @options = options
       
       pattern = /(\d+)\/(\d+)/
       @tuneable = []
@@ -63,10 +60,8 @@ module HD
             new_weights[i] = 0.0
           end
         end
-        @prime_weights = new_weights
-      else
-        @prime_weights = new_weights
       end
+      @prime_weights = ::NArray.to_na(new_weights)
     end
     
     def reject_untuneable_intervals!
@@ -103,13 +98,16 @@ module HD
       r.reduce
     end
     
+    # Reduces the ratio and returns the value
     def reduce
       r = self.dup
-      while r[0] > 0 do
-        tmp = r[1]
-        r[1] = r[0] % r[1]
-        r[1] = tmp
-      end
+      # Save the factors (only perform this operation once)
+      factors = r.factors
+      # Returns an array of all-positive exponents
+      f = PRIMES ** factors.abs
+      # Assign the masked factors to the duplicated arrays
+      r[0] = (f[factors.gt(0.0)].prod.is_a? Numeric) ? f[factors.gt(0.0)].prod : 1
+      r[1] = (f[factors.lt(0.0)].prod.is_a? Numeric) ? f[factors.lt(0.0)].prod : 1
       r
     end
     
@@ -128,6 +126,14 @@ module HD
       ratios = []
       a.each {|x| ratios << HD.r(x[0], x[1])}
       ::NArray.to_na(ratios)
+    end
+    
+    # Generates a ratio from its constituent factors (expressed as a vector of prime exponents)
+    def self.from_factors factors
+      (factors.is_a? Array) ? factors = ::NArray.to_na(factors) : false
+      f = PRIMES ** factors.abs
+      # Assign the masked factors to the duplicated arrays
+      Ratio[f[factors.gt(0.0)].prod, f[factors.lt(0.0)].prod]
     end
     
     def dec
@@ -153,24 +159,36 @@ module HD
     
     def * r
       if r.is_a? Ratio
-        Ratio[r[0] * self[0], r[1] * self[1]]
+        # Default response. All other ifs should point toward this.
+        Ratio.from_factors(self.factors + r.factors)
       elsif r.is_a? Numeric
-        Ratio[self[0] * r, self[1]]
+        self * Ratio[r, 1]
       elsif r.is_a? NArray
-        Ratio[self[0] * r[0], self[1] * r[1]]
+        self * Ratio[*r].factors
       else
         raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio.*")
       end
     end
     
-    def ** i
-      (!i.is_a? Object) ? (raise ArgumentError.new("Supplied class #{i.class} to HD::Ratio.**")) : false
-      # (i == 1) ? (return self) : false
-      # (i == -1) ? (return Ratio[self[0],self[1]]) : false
-      # (i == 0) ? (return Ratio[1,1]) : false
-      (i.respond_to? :collect) ? (return ::NArray.to_na(i.to_a.collect {|x| self ** x})) : false
-      (i < 0) ? (return Ratio[self[1] ** (i*-1), self[0] ** (i*-1)]) : false
-      Ratio[self[0] ** i, self[1] ** i]
+    def / r
+      if r.is_a? Ratio
+        # Default response. All other ifs should point toward this.
+        Ratio.from_factors(self.factors - r.factors)
+      elsif r.is_a? Numeric
+        self / Ratio[1, r]
+      else
+        raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio./")
+      end
+    end
+    
+    def ** r
+      if r == 2
+        super
+      else
+        # For some reason NVector doesn't respond to ** unless the other is 2,
+        # so we have to call NArray's ** method
+        ::NArray.instance_method(:**).bind(self).call(r)
+      end
     end
     
     def - r
@@ -180,17 +198,6 @@ module HD
         self.-(Ratio[r, 1])
       else
         raise Exception.new("Supplied class #{r.class} to HD::Ratio.-")
-      end
-    end
-    
-    def / r
-      if r.is_a? HD::Ratio
-        a = Rational(self[0], self[1]) / Rational(r[0], r[1])
-        Ratio[a.numerator, a.denominator]
-      elsif r.is_a? Numeric
-        Ratio[self[0], r * self[1]]
-      else
-        raise ArgumentError.new("Supplied class #{r.class} to HD::Ratio./")
       end
     end
     
@@ -236,31 +243,32 @@ module HD
     
     # The normal map method returns an Array (we want a Ratio back)
     def map
-      num = yield self[0]
-      den = yield self[1]
-      Ratio[num, den]
-    end
-    
-    # Reduces the ratio and returns the value
-    def reduce
-      ratio = self.dup
-      PRIMES.each {|z| ratio = ratio.map {|y| y /= z} while ratio.all? {|y| y % z == 0}}
-      ratio
+      r = self.dup
+      begin
+        r[0] = yield r[0]
+        r[1] = yield r[1]
+      rescue TypeError => e
+        warn "the block associated with #map returned nil; aborting map function"
+        puts e.backtrace
+      end
+      r
     end
     
     # For each of the num and den, provides a list of exponents. Primes are only up through the size of PRIMES.
     def factors
-      exponents = self.map do |y|
-        PRIMES.map do |x|
+      exponents = ::NArray.int(PRIMES.size, 2)
+      self.each_with_index do |y, i|
+        exponents[true,i] = ::NArray.to_na(PRIMES.to_a.map do |x|
           exp_count = 0
           while y % x == 0
             exp_count += 1
             y /= x
           end
           exp_count
-        end
+        end)
       end
-      exponents
+      # Will be an NArray of exponents (negative numbers are denominators)
+      exponents[true,0] - exponents[true,1]
     end
     
     # Returns the harmonic distance from another point (or from the origin if no point is specified)
@@ -272,19 +280,10 @@ module HD
       me = self.dup
       me /= origin
       factors = me.factors
-      
+      # There must be a weight for every possible factor (i.e., weights and PRIMES must be the same size)
       warn "Weights and factors are not the same size!" if factors[0].size != weights.size
-      # Uses the "city blocks" metric
-      city_blocks = 1
-      for factor in factors
-        weights.each_with_index do |w,i|
-          city_blocks *= w ** factor[i]
-        end
-      end
-      if city_blocks == 0
-        return Math::log2(city_blocks) * -1
-      end
-      return Math::log2(city_blocks)
+      # Quick calculation of the city block metric
+      NMath.log2((weights * factors).abs.sum)
     end
     
     # Allows for an array of Ratio objects to be sorted according to size (scale order)
@@ -318,10 +317,6 @@ module HD
   end # Ratio (Class)
   
   def self.narray_to_string(n)
-    # out = 
-    # n.shape[1].times do |i|
-    #   out << n[true,i].to_a.to_s
-    # end
     n.to_a.to_s
   end
   
