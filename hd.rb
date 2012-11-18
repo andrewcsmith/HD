@@ -1,15 +1,47 @@
-#  ========== 
-#  = HD     = 
-#  ========== 
-# A module for measuring harmonic distance
-# test.
+# =HD
+# ==A module for measuring harmonic distance in just intonation
+# 
+# 
+# 
+# 
+# 
+# This module takes much of its inspiration from two sources: 
+# 
+# The more general theoretical source is James Tenney's measurement of
+# "Harmonic Distance", both in the way that harmonic distance is measured
+# across a single interval and in the features given that compute the HD-sum
+# of a given pitch aggregate.
+# 
+# The other theoretical source, specific to just intonation performance, is
+# the range of "tuneable intervals" discussed by Marc Sabat and Wolfgang von
+# Schweinitz. The "tuneable intervals" are a list of intervals that can be
+# tuned in a single step by ear, with reasonable accuracy.
+# 
+# (In an interesting parallel between the work of Tenney and Sabat, this list
+# of intervals does not include anything smaller than 8/7 or anything too
+# close to a 2/1 octave. This parallels Tenney's recognition that lower-limit
+# prime ratios create a larger bandwidth of tolerance in which the ear
+# perceives nearby complex ratios as "out of tune" simpler ratios.)
+# 
+
 module HD
   require 'set'
   require 'narray'
-  # Prime numbers up to 23. That's all I'm composing with.
-  PRIMES = ::NArray[2.0,3,5,7,11,13,17,19,23]
   
-  # Had to add this to the NArray class for the olm & ulm, regarding harmonic distance
+  # A list of the prime numbers in use for a particular musical application.
+  # In this case, the primes stop at 23 as that is the upper limit for many
+  # musical compositions, and using a smaller list of primes makes processing
+  # easier (since the list is iterated over often).
+  # 
+  # Changing the constant is simple, but must be deliberate:
+  #   module HD
+  #     PRIMES = ::NArray[...]
+  #   end
+  # 
+  # This way, it cannot be "accidentally" changed.
+  PRIMES = ::NArray[2,3,5,7,11,13,17,19,23].to_f
+  
+  # This addition to the NArray
   class NArray
     def distance(origin = nil, config = HD::HDConfig.new)
       dist_vectors = NArray.object(self.total)
@@ -20,24 +52,34 @@ module HD
     end
   end
   
-  # Holds the configuration parameters for the various HD measurement functions
-  # Settings that are possible as of now: a custom list of prime number weights, 
-  # and a custom filename from which to read in a list of tuneable intervals.
+  # Holds the configuration parameters for the various HD measurement
+  # functions.
+  # 
+  # Settings that are possible as of now: a custom list of prime number
+  # weights, and a custom filename from which to read in a list of tuneable
+  # intervals.
   class HDConfig
-    attr_accessor :prime_weights, :pc_only, :tuneable
+    attr_accessor :pc_only, :prime_weights, :tuneable
     
+    # Creates a new HDConfig object with the following default options:
+    # * pc_only: false
+    # * prime_weights: [2,3,5,7,11,13,17,19,23]
+    # *  
     def initialize(options = { })
       @options = options
-      @prime_weights =    ::NArray.to_na(options[:prime_weights]) || PRIMES.dup
-      @pc_only =          options[:pc_only]                       || false
-      @tuneable_file =    options[:tuneable_file]                 || "tuneable.txt"
+      @prime_weights =    options[:prime_weights]   || PRIMES.dup
+      @pc_only =          options[:pc_only]         || false
+      @tuneable_file =    options[:tuneable_file]   || "tuneable.txt"
+      
+      # Confirm that the :prime_weights item is an NArray
+      @prime_weights = ::NArray.to_na(@prime_weights)
       
       if @prime_weights.size != PRIMES.size
-        PRIMES.size.times do |i|
-          if @prime_weights[i] == nil
-            @prime_weights[i] = 0.0
-          end
+        p = ::NArray.float(PRIMES.size)
+        @prime_weights.to_a.each_with_index do |x, i|
+          p[i] = x
         end
+        @prime_weights = p
       end
       
       pattern = /(\d+)\/(\d+)/
@@ -83,15 +125,18 @@ module HD
     
     # Default value is 1/1. This make it easier to provide an origin of 1/1 for any distance function.
     def initialize(*args)
-      if args.is_a? NArray && args.shape = [2]
+      # if args.is_a? NArray && args.shape = [2]
         super(args[0], args[1])
-      else
-        super
-      end
+      # else
+      #   super[args]
+      # end
     end
     
     def self.[] *args
+      # Create an NVector with type int and length of 2
+      # (note: does **not** create the ratio 3/2)
       r = Ratio.new(3,2)
+      
       r[0] = args[0]
       r[1] = args[1]
       !r[1] ? r[1] = 1 : false
@@ -133,7 +178,7 @@ module HD
       (factors.is_a? Array) ? factors = ::NArray.to_na(factors) : false
       f = PRIMES ** factors.abs
       # Assign the masked factors to the duplicated arrays
-      Ratio[f[factors.gt(0.0)].prod, f[factors.lt(0.0)].prod]
+      Ratio[f[factors.ge(0.0)].prod, f[factors.le(0.0)].prod]
     end
     
     def dec
@@ -271,19 +316,32 @@ module HD
       exponents[true,0] - exponents[true,1]
     end
     
-    # Returns the harmonic distance from another point (or from the origin if no point is specified)
-    # Defaults are distance from origin and default HDConfig object
-    # an alternate origin may be specified, which would allow for distances from other points
-    def distance(origin = HD::Ratio[1,1], config = HD::HDConfig.new)
-      # Set up the variables
+    # Returns the harmonic distance (as a "city block" measurement) between two points. If no second point is specified, then
+    # it is assumed that we want the distance from a 1/1 origin.  
+    # If either point in question lies outside of the harmonic
+    # space, then the distance is _Infinity_. This comes into play in a number of ways, but the most common is as a filter
+    # for the set of all tuneable intervals. Working in (for example) a 7-limit harmonic space would require that the
+    # interval of 11/4 (while a tuneable interval) would not be eligible for use. Therefore, a distance of Infinity allows
+    # this to be filtered out of the list of tuneable intervals. (See the method HDConfig#reject_untuneable_intervals! for
+    # more information).
+    def distance(origin = Ratio[1,1], config = HD::HDConfig.new)
+      # Take weights from the config element passed in
       weights = config.prime_weights
-      me = self.dup
-      me /= origin
-      factors = me.factors
-      # There must be a weight for every possible factor (i.e., weights and PRIMES must be the same size)
-      warn "Weights and factors are not the same size!" if factors[0].size != weights.size
-      # Quick calculation of the city block metric
-      NMath.log2((weights * factors).abs.sum)
+      # Get the factors of the numerator and denominator of the interval from the point to the origin
+      factors = (self.dup / origin).factors
+      # In any reasonable sense, the weights array and factors array must be the same size
+      if factors.size != weights.size
+        warn "Weights and factors are not the same size!" 
+        puts "Factors size: #{factors.size}, Weights size: #{weights.size}"
+      end
+      
+      # If a factor's weight is 0 then it is outside of the harmonic space, and its distance is Infinity.
+      if ((factors.ne 0) & (weights.ne 0)) != (factors.ne 0)
+        return NMath.log2(0) * -1
+      else # Calculation of the city block metric, using vectors instead of iteration
+        wf = weights ** factors.abs
+        NMath.log2((wf).abs[wf.ne 0.0].prod)
+      end
     end
     
     # Allows for an array of Ratio objects to be sorted according to size (scale order)

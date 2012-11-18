@@ -12,6 +12,14 @@ class MMTest < Test::Unit::TestCase
     ratios = HD::Ratio.from_s(input_string)
     assert_equal(NArray[HD.r, HD.r(4,3), HD.r(16,7), HD.r(96,49), HD.r(216,49), HD.r(864, 245)], ratios)
   end
+  
+  def test_distance
+    # These harmonic distances are taken from the Marc Sabat / Robin Hayward paper Tuneable Brass Intervals
+    assert_in_delta(3.5849625, HD.r(4,3).distance, 0.001)
+    assert_in_delta(4.32192809, HD.r(5,4).distance, 0.001)
+    assert_in_delta(5.80735, HD.r(8,7).distance, 0.001)
+    assert_in_delta(5.39232, HD.r(7,6).distance, 0.001)
+  end
 
   def test_olm
     v1 = NArray[HD.r(1,1), HD.r(3,2), HD.r(7,4), HD.r(11,9), HD.r(6,5)]
@@ -28,6 +36,21 @@ class MMTest < Test::Unit::TestCase
     c_olm.int_func = MM::INTERVAL_FUNCTIONS[:pairs]
     
     assert_in_delta(0.215, MM.dist_olm(v1, v2, c_olm), 0.001)
+  end
+  
+  def test_simple_olm
+    v1 = HD::Ratio.from_s "1/1 2/1 5/4"
+    v2 = HD::Ratio.from_s "1/1 7/4 21/16"
+    
+    d_config = HD::HDConfig.new
+    
+    c_olm = MM::DistConfig.new
+    c_olm.scale = :none
+    c_olm.intra_delta = MM.get_harmonic_distance_delta(d_config)
+    c_olm.inter_delta = MM::DELTA_FUNCTIONS[:abs_diff]
+    c_olm.int_func = MM::INTERVAL_FUNCTIONS[:pairs]
+    
+    assert_in_delta(2.772, MM.dist_olm(v1, v2, c_olm), 0.001)
   end
   
   def test_ocm

@@ -12,9 +12,16 @@ module MM
     # also be found by searching. A search algorithm might employ
     # gradient descent techniques to find the diameter of a space.   
     
+    # Is there also a way to get the angle without necessarily
+    # knowing the maximum dimension? The two metrics must be scaled
+    # to one another – however, the max scaling of each metric is
+    # really just a compositional decision. There's nothing to say
+    # that one metric could not be scaled wildly differently than the
+    # other.
+    
     class Angle
       
-      attr_accessor :x_metric, :y_metric, :x_bounds, :x_cfg, :y_bounds, :y_cfg, :hd_cfg
+      attr_accessor :x_metric, :y_metric, :x_bounds, :x_cfg, :y_bounds, :y_cfg, :hd_cfg, :reference_interval
       
       def initialize(x_metric, y_metric, x_bounds, x_cfg, y_bounds, y_cfg, hd_cfg)
         @x_metric = x_metric
@@ -45,8 +52,30 @@ module MM
         }
       end
       
+      def reference_interval= r
+        if r[0].is_a? NArray
+          @reference_interval = r[0]
+        else
+          warn "@reference_interval was not set. Please pass an NArray to get_coordinates_from_reference"
+        end
+      end
+      
       def get_coordinates(v)
         NArray[@x_metric.call(v, @x_bounds[0], @x_cfg), @y_metric.call(v, @y_bounds[0], @y_cfg)]
+      end
+      
+      def get_coordinates_from_reference(v, *r)
+        if r.size > 0
+          if r[0].is_a? NArray
+            @reference_interval = r[0]
+          else
+            warn "@reference_interval was not set. Please pass an NArray to get_coordinates_from_reference"
+          end
+        elsif @reference_interval == nil
+          raise "Please first set reference_interval."
+        end
+        
+        get_coordinates(v) - get_coordinates(@reference_interval)
       end
       
       def get_angle(v, o)
