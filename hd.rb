@@ -173,6 +173,16 @@ module HD
       ::NArray.to_na(ratios)
     end
     
+    def self.from_na na
+      if na.shape[0] != 2
+        raise "First dimension of HD::Ratio#from_na must be 2"
+      end
+      r = Ratio.new(3,2)
+      r[0] = na[0]
+      r[1] = na[1]
+      r.reduce
+    end
+    
     # Generates a ratio from its constituent factors (expressed as a vector of prime exponents)
     def self.from_factors factors
       (factors.is_a? Array) ? factors = ::NArray.to_na(factors) : false

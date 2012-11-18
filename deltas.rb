@@ -28,8 +28,7 @@ module MM
       # If it's a vector, then create a vector to hold all the inter-vector distances
       dist_vectors = NArray.float(a.shape[1])
       for i in 0...dist_vectors.size
-        # TODO: Perhaps create a lookup table that just holds the harmonic distance results, rather than calling the .distance function like a million times. This would only work for OLM, but it would optimize that somewhat.
-        dist_vectors[i] = HD::Ratio[a[0,i],a[1,i]].distance(HD::Ratio[b[0,i],b[1,i]], config).abs
+        dist_vectors[i] = HD::Ratio.from_na(a[true,i]).distance(HD::Ratio.from_na(b[true,i]), config).abs
       end
       return dist_vectors
     }
