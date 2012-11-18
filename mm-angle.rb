@@ -92,8 +92,11 @@ __END__
 
 # Copy and paste all this stuff below into the IRB to set up the environment
 
+# Source vectors
 v1 = NArray[[1, 1], [2, 1], [3, 2], [2, 3], [16, 15], [32, 45], [8, 5], [6, 5], [9, 5]]
 o = NArray[[1, 1], [2, 1], [3, 2], [2, 3], [16, 9], [32, 27], [8, 3], [2, 1], [3, 1]]
+
+# The setup:
 hd_cfg = HD::HDConfig.new
 hd_cfg.prime_weights = [2,3,5,7,11]
 hd_cfg.reject_untuneable_intervals!
