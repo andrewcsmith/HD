@@ -5,16 +5,26 @@ require './get_angle.rb'
 require 'nokogiri'
 require './get_tuneable_data.rb'
 
+# TODO: Fix this so that it works with the Angle object
 module MM
 
   # This thing is going to be a massive OLM search function, on an x/y axis
-  # The goal is to narrow in on a couple of coordinates, rather than just distance
+  # The goal is to narrow in on a couple of coordinates, rather than just
+  # distance
   @@get_olm_search = ->(opts) {
+    
+    # ===BASIC DEBUG SETTINGS
+    # 0 = stop bothering me
+    # 1 = general
+    # 2 = lots more
+    debug_level        = opts[:debug_level]        || 1
+    
     start_vector       = opts[:start_vector]
     epsilon            = opts[:epsilon]            || 0.01
     max_iterations     = opts[:max_iterations]     || 1000
 
-    # Added this so that we could get a custom list of tuneable intervals & prime_weights in there
+    # Added this so that we could get a custom list of tuneable intervals &
+    # prime_weights in there
     hd_config          = opts[:hd_config]          || HD::HDConfig.new
     goal_vector        = opts[:goal_vector]
 
@@ -23,49 +33,59 @@ module MM
 
     path = []
     # Load the list of tuneable intervals, reject the rejects
+    hd_config.reject_untuneable_intervals!
     tuneable = hd_config.tuneable
     tuneable.sort_by! {|x| x.distance(HD.r, hd_config)}
-    tuneable.reject! {|x| (x.distance(HD.r, hd_config) ** -1) == 0}
 
+    # Set the starting point for the first iteration
     current_point = start_vector
+    # Generate a table of all possible costs
     # See 'get_tuneable_data.rb' for more info on the cost function
     current_cost = NMath.sqrt(((get_angle(current_point, start_vector, hd_config)[0..1] - goal_vector) ** 2).sum)
     
-    # Assign our bests, in case we fail
+    # Initialize our bests to the current values
     best_point_so_far = current_point
     best_cost_so_far = current_cost
     
     # Add the start to the path as the first element
     path << start_vector
     
+    # This matters for back-tracking
     initial_run = true
+    # Decide how many of the "best" intervals to skip
     interval_index = 0
    
     max_iterations.times do |iter|
       begin
-        # puts "Iteration #{iter}"
-        # puts "Now #{current_cost} away at #{current_point.to_a}"
-        print "\rIteration #{iter}: #{current_cost} away at #{current_point.to_a}"
+        if debug_level > 1
+          # Prints out a play-by-play
+          puts "Iteration #{iter}"
+          puts "Now #{current_cost} away at #{current_point.to_a}"
+        end
+        if debug_level > 0
+          # Tells us where we are with each large-scale movement
+          print "\rIteration #{iter}: #{current_cost} away at #{current_point.to_a}"
+        end
         
         # The cost vector is just a summation of all the possible movements
         cost = NMath.sqrt(((tuneable_data[true,1,true,true] - goal_vector) ** 2).sum(0))
 
         # If this is the first run-through, keep the interval index the same
-        if initial_run
-          interval_index = 0
-        end
+        initial_run ? interval_index = 0 : false
       
         # Block tests for IndexError
         begin
           ind_x, ind_y = sort_by_cost(cost, interval_index)
           best_interval = tuneable_data[true,0,ind_x,ind_y]
-          # path << change_inner_interval(current_point, ind_y, HD.r(*best_interval))
           possible_interval = change_inner_interval(current_point, ind_y, HD.r(*best_interval))
           
-          # Check to see whether the prospective point has beeen either banned or already added (no infinite loop plz)
+          # Check to see whether the prospective point has beeen either banned
+          # or is already in the current path (no infinite loop plz)
+          # Note that banned_points is a hash, which facilitates extremely quick lookup. We don't care about the value, only whether or not there is a key.
           while (banned_points.has_key? HD.narray_to_string possible_interval) || (path.include? possible_interval)
             interval_index += 1
-            # If we've exhausted all possible intervals, add it to the list of banned points and step back
+            # If we've exhausted all possible intervals, add it to the list of
+            # banned points and step back
             if interval_index >= cost.size
               banned_points[HD.narray_to_string possible_interval] = 1
               bad = path.pop
@@ -75,16 +95,18 @@ module MM
               current_cost = NMath.sqrt(((get_angle(path[-1], start_vector, hd_config)[0..1] - goal_vector) ** 2).sum)
               break
             end
+            # Get the index of the movement that is at the current index level
             ind_x, ind_y = sort_by_cost(cost, interval_index)
+            # Dereference that interval
             best_interval = tuneable_data[true,0,ind_x,ind_y]
+            # Change the interval at that index to another interval, moving closer to the goal
             possible_interval = change_inner_interval(current_point,ind_y,HD.r(*best_interval))
           end
           
-          if banned_points.has_key? HD.narray_to_string possible_interval
-            next
-          end
-          path << possible_interval
+          # If the interval we just discovered is banned, move to the next index number. Otherwise, add it to the path.
+          (banned_points.has_key? HD.narray_to_string possible_interval) ? next : (path << possible_interval)
 
+        # Once in a while we will get an IndexError, when interval_index gets too large. This means that the current point needs to be rejected and added to the list of banned points, because every adjacent point that gets us closer is also bad.
         rescue IndexError => er
           puts "\nIndexError: #{er.message}"
           print er.backtrace.join("\n")
@@ -96,15 +118,17 @@ module MM
           next
         end
       
-        # print "Trying interval #{HD.r(*best_interval)} at #{ind_y}"
+        (debug_level > 1) ? print "Trying interval #{HD.r(*best_interval)} at #{ind_y}" : false
         
         begin
+          # TODO: Fix this to use an Angle object
           ang = get_angle(path[-1], start_vector, hd_config)
         rescue RangeError => er
           puts "\nSeem to have a RangeError -- reordering"
           inner_v = vector_delta(path[-1], 1, get_inner_interval_delta(hd_config), MM::INTERVAL_FUNCTIONS[:pairs])
-          # The following flips all the inner intervals of the second half of the vector.
-          # This doesn't really change the outcome if the OLD is properly used.
+          # The following flips all the inner intervals of the second half of
+          # the vector. This doesn't really change the outcome if the OLD is
+          # properly used.
           ((inner_v.shape[1]/2)...inner_v.shape[1]).times do |x|
             inner_v[true,x] = NArray[inner_v[true,x][1], inner_v[true,x][0]]
           end
@@ -120,10 +144,13 @@ module MM
         # test to see if the prospective point gets us any closer
         if prospective_cost < current_cost
           current_cost = prospective_cost
-        # if it only moves us back a little, give it a shot (after all, we'll pick the best first soon)
-        # TODO: Compare the new not-that-bad cost to the cost of the path's immediate predecessor.
-        # If picking the current result would be less of a setback than popping and moving back a step,
-        # then just move back a little – the next choice will be the best-first anyway.
+        # if it only moves us back a little, give it a shot (after all, we'll
+        # pick the best first soon) 
+        # 
+        # TODO: Compare the new not-that-bad cost to the cost of the path's
+        # immediate predecessor. If picking the current result would be less
+        # of a setback than popping and moving back a step, then just move
+        # back a little – the next choice will be the best-first anyway.
         else
           # Calculate the cost of the one before the prospective choice
           previous_cost = NMath.sqrt(((get_angle(path[-2], start_vector, hd_config)[0..1] - goal_vector) ** 2).sum)
@@ -144,7 +171,7 @@ module MM
           current_point = path[-1]
           break
         else
-          # Update the data table
+          # Else, update the data table
           tuneable_data[true,1,true,true] += get_angle(current_point, start_vector, hd_config)[0..1]
           current_point = path[-1]
           if current_cost < best_cost_so_far
@@ -153,18 +180,12 @@ module MM
           end
           initial_run = true
         end
-        # puts "Now #{current_cost} away at #{current_point.to_a}"
-      # rescue RangeError => er
-      #   puts "\nRangeError -- trying inversions"
-      #   puts er.message
-      #   # current_point = MM.vector_delta(path[-1 ], 1, MM.get_inner_interval_delta(hd_config), MM::INTERVAL_FUNCTIONS[:pairs])
-      #   print er.backtrace.join("\n")
-      #   banned_points[HD.narray_to_string path[-1]] = path[-1]
-      #   path.pop
-      #   initial_run = false
-      #   next
+        if debug_level > 1
+          puts "Now #{current_cost} away at #{current_point.to_a}"
+        end
       end
     end
+    # The data is passed back, for possible use in the next iteration of the search function. This makes it a little bit easier to find multiple points that are close to one another.
     data = {
       :tuneable_data => tuneable_data,
       :banned_points => banned_points,
@@ -179,6 +200,7 @@ module MM
     [current_point, data] # Pass the tuneable_data back
   }
   
+  # a syntactic shortcut
   [:get_olm_search].each do |sym|
     class_eval(<<-EOS, __FILE__, __LINE__)
       unless defined? @@#{sym}
@@ -191,10 +213,6 @@ module MM
 
       def #{sym}
         @@#{sym}
-      end
-      
-      def self.dist_#{sym}(*args)
-        @@#{sym}.call(*args)
       end
     EOS
   end
@@ -234,7 +252,7 @@ begin
     ec = NMath.sin(angle) * distance
     hc = NMath.cos(angle) * distance
     
-    #  ACS:New for this test
+    # ACS: New for this test
     # ec = -0.04468230705093712
     # hc = 0.0037525148522866564
     # # Start is #12 w-nw
