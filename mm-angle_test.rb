@@ -19,7 +19,7 @@ class MMTest < Test::Unit::TestCase
     x_cfg = MM::DistConfig.new({:scale => :none, :intra_delta => MM.get_ed_intra_delta, :inter_delta => MM::DELTA_FUNCTIONS[:longest_vector_abs_diff], :int_func => MM::INTERVAL_FUNCTIONS[:pairs]})
     y_cfg = MM::DistConfig.new({:scale => :none, :intra_delta => MM.get_harmonic_distance_delta(hd_cfg), :inter_delta => MM::DELTA_FUNCTIONS[:longest_vector_abs_diff], :int_func => MM::INTERVAL_FUNCTIONS[:pairs]})
     
-    angler = MM::Angle.new(x_metric, y_metric, x_bounds, x_cfg, y_bounds, y_cfg, hd_cfg)
+    angler = MM::Angle.new(x_metric, y_metric, x_bounds, x_cfg, y_bounds, y_cfg)
     
     # Vector 1 of west-northwest in Topology (phases of this difference)
     assert_in_delta(-67.1786575926054, angler.get_angle(v1, o), 0.001)
