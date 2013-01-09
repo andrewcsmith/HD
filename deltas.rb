@@ -1,12 +1,24 @@
-# This is an inter_delta function to compare the harmonic distance between corresponding elements of a vector
-# If used as an intra_delta function for linear magnitudes
+# This is an inter_delta function to compare the harmonic distance between
+# corresponding elements of a vector.
+# 
+# The only issue with MM compatability is that the configuration must be an
+# outside variable, and not part of the proc, or it must be defined with the
+# definition of the proc. In other words, it might make more sense to define a
+# function that returns a proc based on the config that is passed into it.
+# This way, a proc could then be passed to the MM functions and remain
+# effective (linked to an outside HDConfig).
+# 
+# In combinatorial metrics, the intra_delta acts upon each of the possible
+# pair combinations. By contrast, a linear metric is passed two NArrays filled
+# with objects that need to be acted upon, in this case HD::Ratio objects, of
+# [0...a.total-1] and [1...a.total], so that each successive pair is operated
+# upon.
+# 
+# Refactored into one Proc: this harmonic_distance_delta will respond
+# correctly to both an HD::Ratio (as in combinatorial metrics) and an NArray
+# (as in linear metrics). 
 
-# The only issue with MM compatability is that the configuration must be an outside variable, and not part of the proc, or it must be defined with the definition of the proc. In other words, it might make more sense to define a function that returns a proc based on the config that is passed into it. This way, a proc could then be passed to the MM functions and remain effective (linked to an outside HDConfig)
-
-# In combinatorial metrics, the intra_delta acts upon each of the possible pair combinations. By contrast, a linear metric is passed two NArrays filled with objects that need to be acted upon, in this case HD::Ratio objects, of [0...a.total-1] and [1...a.total], so that each successive pair is operated upon.
-
-# Refactored into one Proc: this harmonic_distance_delta will respond correctly to both an HD::Ratio (as in combinatorial metrics) and an NArray (as in linear metrics). 
-
+# This line should point toward your local copy of the mm.rb file
 require '../Morphological-Metrics/mm.rb'
 
 module MM
@@ -94,46 +106,46 @@ module MM
   
   MM::INTERVAL_FUNCTIONS[:pairs] = lambda {|m| m[true,1...m.shape[1]].reshape(2,m.shape[1]-1)}
   
-  # Takes two vectors [v, o] and flips the inner intervals back and forth such that
-  # the vector v has the lowest possible distance (OLD) from vector o. The distance
-  # of the OLM between both vectors is unaffected.
-  def self.get_lowest_old(v, o, hd_config = HD::HDConfig.new, ignore_tuneable = false, tuned_range = [HD.r(2,3), HD.r(16,1)])
-    o_dec = o[0,true].to_f / o[1,true].to_f
-    
-    out = []
-    delta = get_inner_interval_delta(hd_config)
-    int_func = MM::INTERVAL_FUNCTIONS[:pairs]
-    # TODO: Fix this vector_delta so that it gives the FULL length
-    # it's currently leaving off the last interval
-    inner_v = vector_delta(v, 1, delta, int_func)
-    possible_vectors = []
-    
-    [-1,1].repeated_permutation(inner_v.shape[1]) do |x|
-      # Create NArray to hold the possible vector
-      possible_inner_v = NArray.int(*inner_v.shape)
-      
-      # Iterate through each inner_v with each permutation of exponents
-      (0...inner_v.shape[1]).each do |y|
-        # Must convert to a HD::Ratio so that ** works like we want it to
-        r = HD.r(*inner_v[true,y])
-        possible_inner_v[true,y] = r ** x[y]
-      end
-      
-      # Convert this back into a normalized full vector (so we can check tuneability)
-      v_cand = vector_from_differential possible_inner_v
-      # The range for this function must be 4 octaves above the D string, likely played with art. harmonics
-      # so that it is possible to play every vector.
-      if ignore_tuneable || all_tuneable?(v_cand, hd_config.tuneable, tuned_range)
-        # puts "tuneable: #{v_cand.to_a}"
-        possible_vectors << v_cand
-      end
-    end
-    possible_vectors.sort_by! do |x|
-      x_dec = x[0,true].to_f / x[1,true].to_f
-      MM.dist_old(x_dec, o_dec)
-    end
-    possible_vectors
-  end
+  # # Takes two vectors [v, o] and flips the inner intervals back and forth such that
+  # # the vector v has the lowest possible distance (OLD) from vector o. The distance
+  # # of the OLM between both vectors is unaffected.
+  # def self.get_lowest_old(v, o, hd_config = HD::HDConfig.new, ignore_tuneable = false, tuned_range = [HD.r(2,3), HD.r(16,1)])
+  #   o_dec = o[0,true].to_f / o[1,true].to_f
+  #   
+  #   out = []
+  #   delta = get_inner_interval_delta(hd_config)
+  #   int_func = MM::INTERVAL_FUNCTIONS[:pairs]
+  #   # TODO: Fix this vector_delta so that it gives the FULL length
+  #   # it's currently leaving off the last interval
+  #   inner_v = vector_delta(v, 1, delta, int_func)
+  #   possible_vectors = []
+  #   
+  #   [-1,1].repeated_permutation(inner_v.shape[1]) do |x|
+  #     # Create NArray to hold the possible vector
+  #     possible_inner_v = NArray.int(*inner_v.shape)
+  #     
+  #     # Iterate through each inner_v with each permutation of exponents
+  #     (0...inner_v.shape[1]).each do |y|
+  #       # Must convert to a HD::Ratio so that ** works like we want it to
+  #       r = HD.r(*inner_v[true,y])
+  #       possible_inner_v[true,y] = r ** x[y]
+  #     end
+  #     
+  #     # Convert this back into a normalized full vector (so we can check tuneability)
+  #     v_cand = vector_from_differential possible_inner_v
+  #     # The range for this function must be 4 octaves above the D string, likely played with art. harmonics
+  #     # so that it is possible to play every vector.
+  #     if ignore_tuneable || all_tuneable?(v_cand, hd_config.tuneable, tuned_range)
+  #       # puts "tuneable: #{v_cand.to_a}"
+  #       possible_vectors << v_cand
+  #     end
+  #   end
+  #   possible_vectors.sort_by! do |x|
+  #     x_dec = x[0,true].to_f / x[1,true].to_f
+  #     MM.dist_old(x_dec, o_dec)
+  #   end
+  #   possible_vectors
+  # end
   
   # def self.get_lowest_ocd(v, o, hd_config = HD::HDConfig.new)
   #   o_dec = o[0,true].to_f / o[1,true].to_f
