@@ -125,7 +125,7 @@ module HD
   # 
   #   HD::Ratio[x, y]
   # 
-  # or with the simpler shortcut:
+  # or with the shortcut:
   # 
   #   HD.r(x, y)
   # 
@@ -133,7 +133,8 @@ module HD
   # 
   # The Rational class has not been used as a superclass, because the
   # succession of NVectors translates very well into a 3-dimensional NArray
-  # when operating on a vector of Ratio objects.
+  # when operating on a vector of Ratio objects. This increases compatability
+  # with the Morphological Metrics library.
   class Ratio < NVector
     include Enumerable
     # require 'rational'
@@ -278,6 +279,8 @@ module HD
     def ** r
       if r == 2
         super
+      elsif r == -1
+        Ratio[self[1], self[0]]
       else
         # NVector treats ** as A * A (produces a single digit), instead of the
         # element-wise operation of ** that NArray allows. Have to call
@@ -351,6 +354,13 @@ module HD
       r
     end
     
+    # Returns the cents-distance of an interval
+    def cents(origin = Ratio[1,1])
+      n = self.to_f
+      m = origin.to_f
+      Math.log2(n / m) * 1200.0
+    end
+    
     # Returns the harmonic distance (as a "city block" measurement) between
     # two points. If no second point is specified, then it is assumed that we
     # want the distance from a 1/1 origin.  If either point in question lies
@@ -389,7 +399,8 @@ module HD
       end
     end
     
-    # Allows for an array of Ratio objects to be sorted according to size (scale order)
+    # Allows for an array of Ratio objects to be sorted according to size
+    # (scale order)
     def <=> other
       if other.class == HD::Ratio
         return self[0].to_f / self[1] <=> other[0].to_f / other[1]
@@ -418,6 +429,64 @@ module HD
       return "#{self[0]}/#{self[1]}"
     end
   end # Ratio (Class)
+  
+  # Convenience method for determining whether or not all the intervals are
+  # tuneable Provide it with a point to test and an array of tuneable
+  # intervals (HD::Ratio objects)
+  def self.all_tuneable?(point, tuneable, range = [HD.r(2,3), HD.r(16,3)])
+    for i in 0...point.shape[1]
+      # Using the same variable name to note intervals that are out of range
+      # (Default range settings are for the violin)
+      m = Ratio[*point[true,i]]
+      (m < range[0] || m > range[1]) ? (return false) : 
+      # If it's the first interval, we don't care about tuneability
+      i == 0 ? next : n = Ratio[*point[true,i-1]]
+      # This is the actual tuneability part
+      # interval = m / n
+      !((tuneable.include? m / n) || (tuneable.include? n / m)) ? (return false) : next
+    end
+    true
+  end
+  
+  # Convenient method of changing the inner-interval of a vector
+  def self.change_inner_interval(v, index, interval)
+    vector_delta = MM.vector_delta(v, 1, MM::DELTA_FUNCTIONS[:hd_ratio], MM::INTERVAL_FUNCTIONS[:pairs])
+    vector_delta[true,index] = interval
+    new_vector = MM.vector_from_differential(vector_delta)
+    return new_vector
+  end
+  
+  # ==Informational methods:
+  # 
+  # Returns a vector of precise frequencies. Useful for annotating scores for
+  # rehearsal, or for making SuperCollider mockups.
+  def self.get_frequencies_from_vector(v, base = 440.0)
+    a = NArray.float(3,v.shape[1])
+    a[0..1,true] = v
+    a[2,true] = a[0,true] / a[1,true]
+    
+    b = a[2,true] * base
+    b
+  end
+  
+  # Returns a two-dimensional vector:
+  # dim-1: The cents deviations from 1/1 (tuning pitch)
+  # dim-2: Cents deviations from the nearest 12TET pitch
+  def self.get_cents_from_vector(v)
+    if !v.is_a? NArray
+      v = NArray.to_na(v)
+    end
+    a = NArray.float(3,v.shape[1])
+    a[0..1,true] = v
+    a[2,true] = a[0,true] / a[1,true]
+    
+    # b is a vector of the cents deviations from 1/1, and then the deviations from the nearest et pitch
+    b = NArray.float(2,a.shape[1])
+    b[0,true] = NMath.log2(a[2,true]) * 1200.0
+    
+    b[1,true] = b[0,true].collect {|x| (x.round(-2) - x).round(1) * -1}
+    b
+  end
   
   def self.narray_to_string(n)
     n.to_a.to_s
