@@ -72,7 +72,6 @@ module MM
           raise ArgumentError.new("x_bounds and y_bounds must both be of type Array")
         end
         
-        # TODO: Figure out how to derive the max scale without calling the metric
         @x_cfg.scale = ->(m_diff, n_diff) {
           max_scale = @x_cfg.dup
           max_scale.scale = ->(m_diff, n_diff) {return [1.0, 1.0, 1.0]}
@@ -87,14 +86,15 @@ module MM
       
       # Set the reference "origin"
       def reference_interval= r
-        if r[0].is_a? NArray
-          @reference_interval = r[0]
+        if r.is_a? NArray
+          @reference_interval = r
         else
-          warn "@reference_interval was not set. Please pass an NArray to get_coordinates_from_reference"
+          warn "@reference_interval was not set. Please pass an NArray to get_coordinates_from_reference."
         end
       end
       
-      # Find the coordinates of a given point in the global metric space, relative to the lowest point
+      # Find the coordinates of a given point in the global metric space,
+      # relative to the lowest point
       def get_coordinates(v)
         x = @x_metric.call(v, @x_bounds[0], @x_cfg)
         y = @y_metric.call(v, @y_bounds[0], @y_cfg)
@@ -105,9 +105,9 @@ module MM
       def get_coordinates_from_reference(v, *r)
         if r.size > 0
           if r[0].is_a? NArray
-            @reference_interval = r[0]
+            reference_interval = r[0]
           else
-            warn "@reference_interval was not set. Please pass an NArray to get_coordinates_from_reference"
+            warn "@reference_interval was not set. Please pass an NArray to get_coordinates_from_reference."
           end
         elsif @reference_interval == nil
           raise "Please first set reference_interval."
@@ -136,11 +136,9 @@ module MM
         unscaled_coords
       end
       
-      # Find the angle of a given point, using a second point as an origin. The angle assumes the the y-axis (vertical) is 0 degrees.
+      # Find the angle of a given point, using a second point as an origin.
+      # The angle assumes the the y-axis (vertical) is 0 degrees.
       def get_angle(v, o)
-        v_coordinates = self.get_coordinates v
-        o_coordinates = self.get_coordinates o
-        coord_diff = o_coordinates - v_coordinates
         coord_diff = self.get_coordinates_from_reference(v, o)
         (180.0 * NMath.atan2(coord_diff[0], coord_diff[1]) / NMath::PI)
       end
@@ -150,7 +148,6 @@ module MM
         (180.0 * NMath.atan2(coord_diff[0], coord_diff[1]) / NMath::PI)
       end
     end
-    
 end
 
 __END__
