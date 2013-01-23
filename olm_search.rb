@@ -61,41 +61,41 @@ module MM
 
     # Set the starting point for the first iteration
     current_point = start_vector
-      current_cost = NMath.sqrt(((get_coords.(current_point, start_vector) - goal_vector) ** 2).sum)
+    current_cost = NMath.sqrt(((get_coords.(current_point, start_vector) - goal_vector) ** 2).sum)
     
-      # Initialize our bests to the current values
-      best_point_so_far = current_point
-      best_cost_so_far = current_cost
+    # Initialize our bests to the current values
+    best_point_so_far = current_point
+    best_cost_so_far = current_cost
     
-      # Add the start to the path as the first element
-      path << start_vector
+    # Add the start to the path as the first element
+    path << start_vector
     
-      # This matters for back-tracking
-      initial_run = true
-      # Decide how many of the "best" intervals to skip
-      interval_index = 0
+    # This matters for back-tracking
+    initial_run = true
+    # Decide how many of the "best" intervals to skip
+    interval_index = 0
     
-      catch :success do
-        max_iterations.times do |iter|
-          begin
-            if debug_level > 1
-              # Prints out a play-by-play
-              puts "Iteration #{iter}"
-              puts "Now #{current_cost} away at #{current_point.to_a}"
-            end
-            if debug_level > 0
-              # Tells us where we are with each large-scale movement
-              print "\rIteration #{iter}: #{current_cost} away at #{current_point.to_a}"
-            end
-            catch :keep_going do
+    catch :success do
+      max_iterations.times do |iter|
+        begin # RuntimeError block
+          if debug_level > 1
+            # Prints out a play-by-play
+            puts "Iteration #{iter}"
+            puts "Now #{current_cost} away at #{current_point.to_a}"
+          end
+          if debug_level > 0
+            # Tells us where we are with each large-scale movement
+            print "\rIteration #{iter}: #{current_cost} away at #{current_point.to_a}"
+          end
+          catch :keep_going do
             catch :jump_back do
               # Generate a table of all possible costs (see 'get_tuneable_data.rb' 
               # for more info on the cost function) 
               # The cost vector is just a summation of all the possible movements
               cost = NMath.sqrt(((tuneable_data - goal_vector) ** 2).sum(0))
 
-              # If this is the first run-through, we want to start from the first 
-              # interval
+              # If this is the first run-through, we want to start from the 
+              # first interval
               initial_run ? (interval_index = 0; initial_run = false) : 0
       
               # Block tests for IndexError
@@ -155,27 +155,19 @@ module MM
               # test to see if the prospective point gets us any closer
               prospective_cost = NMath.sqrt(((current_coordinates - goal_vector) ** 2).sum)
               (prospective_cost < current_cost) ? (current_cost = prospective_cost) : (throw :jump_back)
-              # If we can't rearrange the vector to fit within the space move back
-              # (MM.get_lowest_old(path[-1], start_vector)[0] == nil) ? (throw :jump_back) : 0
-        
+              
               # if we're within a margin of tolerance, success!
               if current_cost < epsilon
                 current_point = path[-1]
-                lowest_old = MM.get_lowest_old(current_point, start_vector)
-                if debug_level > 0
-                  puts "\nSuccess at: \t#{current_point.to_a}"
-                  puts "Lowest OLD: \t#{lowest_old[0].to_a}"
-                  puts "Angle: \t\t#{get_angle.(current_point, start_vector)}"
-                  puts "Distance: \t#{NMath.sqrt((get_coords.(current_point) ** 2).sum)}"
-                  puts "Cost: \t\t#{current_cost}"
-                end
-                # Return the loop and succeed
+                lowest_old = MM.get_lowest_old(current_point, start_vector, hd_config, false, [HD.r(2,3), HD.r(16,1)])
+                # If we can't rearrange the vector to fit within the space, jump back
+                (lowest_old[0] == nil) ? (initial_run = true; throw :keep_going) : (throw :success)
                 throw :success
               else # Advance to next without jumping back
+                initial_run = true
                 throw :keep_going
               end
             end # catch [+:jump_back+]
-            # Executed on :jump_back and with no "next" or "break"
             banned_points[HD.narray_to_string path[-1]] = path.pop
             current_point = path[-1] || (path << start_vector)[-1]
             current_cost = NMath.sqrt(((get_coords.(current_point, start_vector) - goal_vector) ** 2).sum)
@@ -187,8 +179,15 @@ module MM
           print e.backtrace.join("\n")
           print "\n\nPath: #{path.to_a}\n\n\n"
           break
-        end # main iteration loop
-      end
+        end # # RuntimeError block
+      end # main iterations
+    end # catch [+:success+]
+    if debug_level > 0
+      puts "\nSuccess at: \t#{current_point.to_a}"
+      puts "Lowest OLD: \t#{lowest_old[0].to_a}"
+      puts "Angle: \t\t#{get_angle.(current_point, start_vector)}"
+      puts "Distance: \t#{NMath.sqrt((get_coords.(current_point) ** 2).sum)}"
+      puts "Cost: \t\t#{current_cost}"
     end
     # The data is passed back, for possible use in the next iteration of the
     # search function. This makes it a little bit easier to find multiple
@@ -262,7 +261,7 @@ begin
   opts[:angler] = angler
   opts[:is_scaled] = true
   
-  (1..14).to_a.each do |x|
+  (9..14).to_a.each do |x|
     # Finding the goal vector
     distance = x * interval
     angle = (-73.952222 / 180.0) * NMath::PI
