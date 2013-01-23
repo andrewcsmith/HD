@@ -105,7 +105,7 @@ module MM
       def get_coordinates_from_reference(v, *r)
         if r.size > 0
           if r[0].is_a? NArray
-            reference_interval = r[0]
+            @reference_interval = r[0]
           else
             warn "@reference_interval was not set. Please pass an NArray to get_coordinates_from_reference."
           end
