@@ -50,7 +50,9 @@ module MM
     # Data that is returned by the proc, that can be re-passed to successive
     # searches to reduce load time. Otherwise, we populate it ourselves.
     # tuneable_data is an Array of all adjacent points and their coordinates
+    debug_level > 0 ? (print "\n== Getting tuneable data...") : false
     tuneable_data      = opts[:tuneable_data]     || get_tuneable_data(NArray.to_na(start_vector), get_coords, hd_config)
+    debug_level > 0 ? (puts "done.") : false
     banned_points      = opts[:banned_points]     || {}
     
     lowest_old = []
@@ -85,7 +87,7 @@ module MM
           end
           if debug_level > 0
             # Tells us where we are with each large-scale movement
-            print "\rIteration #{iter}: #{current_cost} away at #{current_point.to_a}"
+            print "\t\t\t\t\rIteration #{iter}: #{current_cost} away at #{current_point.to_a}"
           end
           catch :keep_going do
             catch :jump_back do
@@ -161,7 +163,7 @@ module MM
                 current_point = path[-1]
                 lowest_old = MM.get_lowest_old(current_point, start_vector, hd_config, false, [HD.r(2,3), HD.r(16,1)])
                 # If we can't rearrange the vector to fit within the space, jump back
-                (lowest_old[0] == nil) ? (initial_run = true; throw :keep_going) : (throw :success)
+                (lowest_old[0] == nil) ? (initial_run = true; throw :jump_back) : (throw :success)
                 throw :success
               else # Advance to next without jumping back
                 initial_run = true
@@ -261,7 +263,7 @@ begin
   opts[:angler] = angler
   opts[:is_scaled] = true
   
-  (9..14).to_a.each do |x|
+  (11..12).to_a.each do |x|
     # Finding the goal vector
     distance = x * interval
     angle = (-73.952222 / 180.0) * NMath::PI
