@@ -82,6 +82,8 @@ module MM
           max_scale.scale = ->(m_diff, n_diff) {return [1.0, 1.0, 1.0]}
           return [@y_metric.call(@y_bounds[0], @y_bounds[1], max_scale), 1, 1]
         }
+        @x_scale = nil
+        @y_scale = nil
       end
       
       # Set the reference "origin"
@@ -125,13 +127,14 @@ module MM
         elsif @reference_interval == nil
           raise "Please first set reference_interval."
         end
-        coords = get_coordinates(@reference_interval)
-        @x_scale = coords[0] / (1.0 - coords[0])
-        @y_scale = coords[1] / (1.0 - coords[1])
+        x_coords = [get_coordinates_from_reference(@x_bounds[0])[0], get_coordinates_from_reference(@x_bounds[1])[0]]
+        y_coords = [get_coordinates_from_reference(@y_bounds[0])[1], get_coordinates_from_reference(@y_bounds[1])[1]]
+        @x_scale = [-1.0 / x_coords[0], 1.0 / x_coords[1]]
+        @y_scale = [-1.0 / y_coords[0], 1.0 / y_coords[1]]
+        unscaled_coords = get_coordinates_from_reference(v)
         
-        unscaled_coords = get_coordinates(v) - get_coordinates(@reference_interval)
-        unscaled_coords[0] > 0.0 ? unscaled_coords[0] *= @x_scale : unscaled_coords[0] /= @x_scale
-        unscaled_coords[1] > 0.0 ? unscaled_coords[1] *= @y_scale : unscaled_coords[1] /= @y_scale
+        unscaled_coords[0] < 0.0 ? unscaled_coords[0] *= @x_scale[0] : unscaled_coords[0] *= @x_scale[1]
+        unscaled_coords[1] < 0.0 ? unscaled_coords[1] *= @y_scale[0] : unscaled_coords[1] *= @y_scale[1]
         
         unscaled_coords
       end
