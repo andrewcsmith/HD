@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+
+<title>class HD::Chord - RDoc Documentation</title>
+
+<link type="text/css" media="screen" href="../rdoc.css" rel="stylesheet">
+
+<script type="text/javascript">
+  var rdoc_rel_prefix = "../";
+</script>
+
+<script type="text/javascript" charset="utf-8" src="../js/jquery.js"></script>
+<script type="text/javascript" charset="utf-8" src="../js/navigation.js"></script>
+<script type="text/javascript" charset="utf-8" src="../js/search_index.js"></script>
+<script type="text/javascript" charset="utf-8" src="../js/search.js"></script>
+<script type="text/javascript" charset="utf-8" src="../js/searcher.js"></script>
+<script type="text/javascript" charset="utf-8" src="../js/darkfish.js"></script>
+
+
+<body id="top" class="class">
+<nav id="metadata">
+  <nav id="home-section" class="section">
+  <h3 class="section-header">
+    <a href="../index.html">Home</a>
+    <a href="../table_of_contents.html#classes">Classes</a>
+    <a href="../table_of_contents.html#methods">Methods</a>
+  </h3>
+</nav>
+
+
+  <nav id="search-section" class="section project-section" class="initially-hidden">
+  <form action="#" method="get" accept-charset="utf-8">
+    <h3 class="section-header">
+      <input type="text" name="search" placeholder="Search" id="search-field"
+             title="Type to search, Up and Down to navigate, Enter to load">
+    </h3>
+  </form>
+
+  <ul id="search-results" class="initially-hidden"></ul>
+</nav>
+
+
+  <div id="file-metadata">
+    <nav id="file-list-section" class="section">
+  <h3 class="section-header">Defined In</h3>
+  <ul>
+    <li>hd.rb
+  </ul>
+</nav>
+
+    
+  </div>
+
+  <div id="class-metadata">
+    
+    <nav id="parent-class-section" class="section">
+  <h3 class="section-header">Parent</h3>
+  
+  <p class="link">SortedSet
+  
+</nav>
+
+    
+    <!-- Method Quickref -->
+<nav id="method-list-section" class="section">
+  <h3 class="section-header">Methods</h3>
+
+  <ul class="link-list">
+    
+    <li><a href="#method-i-candidates">#candidates</a>
+    
+    <li><a href="#method-i-hd_sum">#hd_sum</a>
+    
+    <li><a href="#method-i-logical_origin">#logical_origin</a>
+    
+    <li><a href="#method-i-pairs">#pairs</a>
+    
+    <li><a href="#method-i-to_s">#to_s</a>
+    
+  </ul>
+</nav>
+
+  </div>
+
+  <div id="project-metadata">
+    
+    <nav id="classindex-section" class="section project-section">
+  <h3 class="section-header">Class and Module Index</h3>
+
+  <ul class="link-list">
+  
+    <li><a href="../HD.html">HD</a>
+  
+    <li><a href="../HD/Chord.html">HD::Chord</a>
+  
+    <li><a href="../HD/HDConfig.html">HD::HDConfig</a>
+  
+    <li><a href="../HD/NArray.html">HD::NArray</a>
+  
+    <li><a href="../HD/Ratio.html">HD::Ratio</a>
+  
+    <li><a href="../HD/WeightedArray.html">HD::WeightedArray</a>
+  
+  </ul>
+</nav>
+
+  </div>
+</nav>
+
+<div id="documentation">
+  <h1 class="class">class HD::Chord</h1>
+
+  <div id="description" class="description">
+    
+<p>The chord is essentially just a sorted set that translates some of the
+basic functions so that they’ll work with the <a
+href="Ratio.html">Ratio</a> objects. It also will calculate the total
+distance between all possible points (combinatorial summation) and  can
+return a set of all possible pairs.</p>
+
+  </div><!-- description -->
+
+  
+  
+  
+  <section id="5Buntitled-5D" class="documentation-section">
+    
+
+    
+
+    
+
+    
+
+    <!-- Methods -->
+    
+     <section id="public-instance-5Buntitled-5D-method-details" class="method-section section">
+      <h3 class="section-header">Public Instance Methods</h3>
+
+    
+      <div id="method-i-candidates" class="method-detail ">
+        
+        <div class="method-heading">
+          <span class="method-name">candidates</span><span
+            class="method-args">(config = HD::HDConfig.new)</span>
+          <span class="method-click-advice">click to toggle source</span>
+        </div>
+        
+
+        <div class="method-description">
+          
+          <p>Returns an array of all possible candidates connected to the pitches
+Optional argument pc_only allows for consideration of only pitch-class
+projection space (where octave equivalency is respected)</p>
+          
+
+          
+          <div class="method-source-code" id="candidates-source">
+            <pre><span class="ruby-comment"># File hd.rb, line 447</span>
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">candidates</span>(<span class="ruby-identifier">config</span> = <span class="ruby-constant">HD</span><span class="ruby-operator">::</span><span class="ruby-constant">HDConfig</span>.<span class="ruby-identifier">new</span>)
+  <span class="ruby-identifier">candidates</span> = []
+  <span class="ruby-keyword">self</span>.<span class="ruby-identifier">each</span> <span class="ruby-keyword">do</span> <span class="ruby-operator">|</span><span class="ruby-identifier">e</span><span class="ruby-operator">|</span>
+    <span class="ruby-constant">PRIMES</span>.<span class="ruby-identifier">each</span> <span class="ruby-keyword">do</span> <span class="ruby-operator">|</span><span class="ruby-identifier">p</span><span class="ruby-operator">|</span>
+      <span class="ruby-comment"># Add each connected element</span>
+      <span class="ruby-identifier">candidates</span> <span class="ruby-operator">&lt;&lt;</span> <span class="ruby-identifier">e</span> * <span class="ruby-constant">Ratio</span>.<span class="ruby-identifier">new</span>(<span class="ruby-identifier">p</span>, <span class="ruby-value">1</span>)
+      <span class="ruby-identifier">candidates</span> <span class="ruby-operator">&lt;&lt;</span> <span class="ruby-identifier">e</span> * <span class="ruby-constant">Ratio</span>.<span class="ruby-identifier">new</span>(<span class="ruby-value">1</span>, <span class="ruby-identifier">p</span>)
+    <span class="ruby-keyword">end</span>
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-comment"># Filter everything for pitch-class space</span>
+  <span class="ruby-keyword">if</span> <span class="ruby-identifier">config</span>.<span class="ruby-identifier">pc_only</span>
+    <span class="ruby-identifier">candidates</span>.<span class="ruby-identifier">each</span> <span class="ruby-keyword">do</span> <span class="ruby-operator">|</span><span class="ruby-identifier">x</span><span class="ruby-operator">|</span>
+      <span class="ruby-identifier">x</span> = <span class="ruby-identifier">x</span>.<span class="ruby-identifier">pc_space</span>
+    <span class="ruby-keyword">end</span>
+    <span class="ruby-identifier">candidates</span> = <span class="ruby-identifier">candidates</span> &amp; <span class="ruby-identifier">candidates</span>
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-identifier">candidates</span>.<span class="ruby-identifier">reject!</span> {<span class="ruby-operator">|</span><span class="ruby-identifier">x</span><span class="ruby-operator">|</span> <span class="ruby-keyword">self</span>.<span class="ruby-identifier">include?</span> <span class="ruby-identifier">x</span>}
+  <span class="ruby-identifier">candidates</span>
+<span class="ruby-keyword">end</span></pre>
+          </div><!-- candidates-source -->
+          
+        </div>
+
+        
+
+        
+      </div><!-- candidates-method -->
+
+    
+      <div id="method-i-hd_sum" class="method-detail ">
+        
+        <div class="method-heading">
+          <span class="method-name">hd_sum</span><span
+            class="method-args">(config = HD::HDConfig.new)</span>
+          <span class="method-click-advice">click to toggle source</span>
+        </div>
+        
+
+        <div class="method-description">
+          
+          <p>sum of the combinatorial distance of all members of the chord. the distance
+between each possible pair is computed, and that amount is summed to
+compute the total distance</p>
+          
+
+          
+          <div class="method-source-code" id="hd_sum-source">
+            <pre><span class="ruby-comment"># File hd.rb, line 400</span>
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">hd_sum</span>(<span class="ruby-identifier">config</span> = <span class="ruby-constant">HD</span><span class="ruby-operator">::</span><span class="ruby-constant">HDConfig</span>.<span class="ruby-identifier">new</span>)
+  <span class="ruby-identifier">total</span> = <span class="ruby-value">0</span>
+  <span class="ruby-identifier">all_pairs</span> = []
+  <span class="ruby-keyword">self</span>.<span class="ruby-identifier">pairs</span>.<span class="ruby-identifier">each</span> {<span class="ruby-operator">|</span><span class="ruby-identifier">x</span>,<span class="ruby-identifier">y</span><span class="ruby-operator">|</span> <span class="ruby-identifier">all_pairs</span> <span class="ruby-operator">&lt;&lt;</span> [<span class="ruby-identifier">x</span>,<span class="ruby-identifier">y</span>]}
+  <span class="ruby-identifier">all_pairs</span>.<span class="ruby-identifier">each</span> {<span class="ruby-operator">|</span><span class="ruby-identifier">x</span><span class="ruby-operator">|</span> <span class="ruby-identifier">total</span> <span class="ruby-operator">+=</span> <span class="ruby-identifier">x</span>[<span class="ruby-value">0</span>].<span class="ruby-identifier">distance</span>(<span class="ruby-identifier">x</span>[<span class="ruby-value">1</span>], <span class="ruby-identifier">config</span>)}
+  <span class="ruby-identifier">total</span>
+<span class="ruby-keyword">end</span></pre>
+          </div><!-- hd_sum-source -->
+          
+        </div>
+
+        
+
+        
+      </div><!-- hd_sum-method -->
+
+    
+      <div id="method-i-logical_origin" class="method-detail ">
+        
+        <div class="method-heading">
+          <span class="method-name">logical_origin</span><span
+            class="method-args">(config = HDConfig.new)</span>
+          <span class="method-click-advice">click to toggle source</span>
+        </div>
+        
+
+        <div class="method-description">
+          
+          <p>See “Crystal Growth in Harmonic Space,” by James Tenney as well as the
+tables and refinements suggested by Marc Sabat &amp; Wolfgang von
+Schweinitz (plainsound.org)</p>
+
+<p>Finds the point which is the least possible harmonic distance from all
+other points, while not being a member of the chord itself. Should have the
+smallest possible return of  total_distance when added to the chord.</p>
+<ol><li>
+<p>Look through all tuneable intervals for each member</p>
+</li><li>
+<p>Add each one to the chord, and evaluate total_distance</p>
+</li><li>
+<p>Pick the interval with the least total_distance</p>
+</li></ol>
+          
+
+          
+          <div class="method-source-code" id="logical_origin-source">
+            <pre><span class="ruby-comment"># File hd.rb, line 420</span>
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">logical_origin</span>(<span class="ruby-identifier">config</span> = <span class="ruby-constant">HDConfig</span>.<span class="ruby-identifier">new</span>)
+  <span class="ruby-identifier">least_harmonic_distance</span> = {<span class="ruby-value">:distance</span> =<span class="ruby-operator">&gt;</span> <span class="ruby-keyword">nil</span>, <span class="ruby-value">:ratio</span> =<span class="ruby-operator">&gt;</span> <span class="ruby-keyword">nil</span>}
+  <span class="ruby-keyword">self</span>.<span class="ruby-identifier">each</span> <span class="ruby-keyword">do</span> <span class="ruby-operator">|</span><span class="ruby-identifier">m</span><span class="ruby-operator">|</span>
+    <span class="ruby-identifier">config</span>.<span class="ruby-identifier">tuneable</span>.<span class="ruby-identifier">each</span> <span class="ruby-keyword">do</span> <span class="ruby-operator">|</span><span class="ruby-identifier">i</span><span class="ruby-operator">|</span>
+      <span class="ruby-keyword">if</span> <span class="ruby-keyword">self</span>.<span class="ruby-identifier">member?</span> <span class="ruby-identifier">m</span> * <span class="ruby-identifier">i</span>
+        <span class="ruby-keyword">next</span>
+      <span class="ruby-keyword">end</span>
+      <span class="ruby-keyword">if</span> (<span class="ruby-identifier">m</span> * <span class="ruby-identifier">i</span>) <span class="ruby-operator">&gt;</span> <span class="ruby-constant">Ratio</span>.<span class="ruby-identifier">new</span>(<span class="ruby-value">9</span>,<span class="ruby-value">2</span>) <span class="ruby-operator">||</span> (<span class="ruby-identifier">m</span> * <span class="ruby-identifier">i</span>) <span class="ruby-operator">&lt;</span> <span class="ruby-constant">Ratio</span>.<span class="ruby-identifier">new</span>(<span class="ruby-value">4</span>,<span class="ruby-value">9</span>)
+        <span class="ruby-keyword">next</span>
+      <span class="ruby-keyword">end</span>
+      <span class="ruby-identifier">c</span> = <span class="ruby-keyword">self</span>.<span class="ruby-identifier">dup</span>
+      <span class="ruby-identifier">c</span> <span class="ruby-operator">&lt;&lt;</span> <span class="ruby-identifier">m</span> * <span class="ruby-identifier">i</span>
+      <span class="ruby-keyword">if</span> (<span class="ruby-identifier">least_harmonic_distance</span>[<span class="ruby-value">:ratio</span>] <span class="ruby-operator">==</span> <span class="ruby-keyword">nil</span>)
+        <span class="ruby-identifier">least_harmonic_distance</span>[<span class="ruby-value">:ratio</span>] = <span class="ruby-identifier">m</span> * <span class="ruby-identifier">i</span>
+        <span class="ruby-identifier">least_harmonic_distance</span>[<span class="ruby-value">:distance</span>] = <span class="ruby-identifier">c</span>.<span class="ruby-identifier">hd_sum</span>(<span class="ruby-identifier">config</span>)
+      <span class="ruby-keyword">elsif</span> (<span class="ruby-identifier">least_harmonic_distance</span>[<span class="ruby-value">:distance</span>] <span class="ruby-operator">&gt;</span> <span class="ruby-identifier">c</span>.<span class="ruby-identifier">hd_sum</span>(<span class="ruby-identifier">config</span>))
+        <span class="ruby-identifier">least_harmonic_distance</span>[<span class="ruby-value">:ratio</span>] = <span class="ruby-identifier">m</span> * <span class="ruby-identifier">i</span>
+        <span class="ruby-identifier">least_harmonic_distance</span>[<span class="ruby-value">:distance</span>] = <span class="ruby-identifier">c</span>.<span class="ruby-identifier">hd_sum</span>(<span class="ruby-identifier">config</span>)
+      <span class="ruby-keyword">end</span>
+    <span class="ruby-keyword">end</span>
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-identifier">least_harmonic_distance</span>
+<span class="ruby-keyword">end</span></pre>
+          </div><!-- logical_origin-source -->
+          
+        </div>
+
+        
+
+        
+      </div><!-- logical_origin-method -->
+
+    
+      <div id="method-i-pairs" class="method-detail ">
+        
+        <div class="method-heading">
+          <span class="method-name">pairs</span><span
+            class="method-args">()</span>
+          <span class="method-click-advice">click to toggle source</span>
+        </div>
+        
+
+        <div class="method-description">
+          
+          <p>Iterate through and create a set of pairs, not counting pairs of the same
+chord</p>
+          
+
+          
+          <div class="method-source-code" id="pairs-source">
+            <pre><span class="ruby-comment"># File hd.rb, line 386</span>
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">pairs</span>
+  <span class="ruby-identifier">pairs</span> = <span class="ruby-constant">Set</span>.<span class="ruby-identifier">new</span>
+  <span class="ruby-keyword">self</span>.<span class="ruby-identifier">each</span> <span class="ruby-keyword">do</span> <span class="ruby-operator">|</span><span class="ruby-identifier">x</span><span class="ruby-operator">|</span>
+    <span class="ruby-keyword">self</span>.<span class="ruby-identifier">each</span> <span class="ruby-keyword">do</span> <span class="ruby-operator">|</span><span class="ruby-identifier">y</span><span class="ruby-operator">|</span>
+      <span class="ruby-identifier">pairs</span> <span class="ruby-operator">&lt;&lt;</span> [<span class="ruby-identifier">x</span>, <span class="ruby-identifier">y</span>].<span class="ruby-identifier">sort</span>
+    <span class="ruby-keyword">end</span>
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-identifier">pairs</span>.<span class="ruby-identifier">reject!</span> {<span class="ruby-operator">|</span><span class="ruby-identifier">x</span><span class="ruby-operator">|</span> <span class="ruby-identifier">x</span>[<span class="ruby-value">0</span>] <span class="ruby-operator">==</span> <span class="ruby-identifier">x</span>[<span class="ruby-value">1</span>]}
+  <span class="ruby-identifier">pairs</span>
+<span class="ruby-keyword">end</span></pre>
+          </div><!-- pairs-source -->
+          
+        </div>
+
+        
+
+        
+      </div><!-- pairs-method -->
+
+    
+      <div id="method-i-to_s" class="method-detail ">
+        
+        <div class="method-heading">
+          <span class="method-name">to_s</span><span
+            class="method-args">()</span>
+          <span class="method-click-advice">click to toggle source</span>
+        </div>
+        
+
+        <div class="method-description">
+          
+          
+          
+
+          
+          <div class="method-source-code" id="to_s-source">
+            <pre><span class="ruby-comment"># File hd.rb, line 467</span>
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">to_s</span>
+  <span class="ruby-identifier">str</span> = <span class="ruby-string">&quot;&quot;</span>
+  <span class="ruby-keyword">self</span>.<span class="ruby-identifier">each</span> {<span class="ruby-operator">|</span><span class="ruby-identifier">x</span><span class="ruby-operator">|</span> <span class="ruby-identifier">str</span> <span class="ruby-operator">&lt;&lt;</span> <span class="ruby-identifier">x</span>}
+<span class="ruby-keyword">end</span></pre>
+          </div><!-- to_s-source -->
+          
+        </div>
+
+        
+
+        
+      </div><!-- to_s-method -->
+
+    
+    </section><!-- public-instance-method-details -->
+  
+  </section><!-- 5Buntitled-5D -->
+
+</div><!-- documentation -->
+
+
+<footer id="validator-badges">
+  <p><a href="http://validator.w3.org/check/referer">[Validate]</a>
+  <p>Generated by <a href="https://github.com/rdoc/rdoc">RDoc</a> 3.12.
+  <p>Generated with the <a href="http://deveiate.org/projects/Darkfish-Rdoc/">Darkfish Rdoc Generator</a> 3.
+</footer>
+

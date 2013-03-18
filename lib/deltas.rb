@@ -18,8 +18,6 @@
 # correctly to both an HD::Ratio (as in combinatorial metrics) and an NArray
 # (as in linear metrics). 
 
-# This line should point toward your local copy of the mm.rb file
-require '../Morphological-Metrics/mm.rb'
 
 module MM
   def self.get_harmonic_distance_delta(config = HD::HDConfig.new)  

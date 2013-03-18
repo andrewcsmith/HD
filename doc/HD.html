@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+
+<title>module HD - RDoc Documentation</title>
+
+<link type="text/css" media="screen" href="./rdoc.css" rel="stylesheet">
+
+<script type="text/javascript">
+  var rdoc_rel_prefix = "./";
+</script>
+
+<script type="text/javascript" charset="utf-8" src="./js/jquery.js"></script>
+<script type="text/javascript" charset="utf-8" src="./js/navigation.js"></script>
+<script type="text/javascript" charset="utf-8" src="./js/search_index.js"></script>
+<script type="text/javascript" charset="utf-8" src="./js/search.js"></script>
+<script type="text/javascript" charset="utf-8" src="./js/searcher.js"></script>
+<script type="text/javascript" charset="utf-8" src="./js/darkfish.js"></script>
+
+
+<body id="top" class="module">
+<nav id="metadata">
+  <nav id="home-section" class="section">
+  <h3 class="section-header">
+    <a href="./index.html">Home</a>
+    <a href="./table_of_contents.html#classes">Classes</a>
+    <a href="./table_of_contents.html#methods">Methods</a>
+  </h3>
+</nav>
+
+
+  <nav id="search-section" class="section project-section" class="initially-hidden">
+  <form action="#" method="get" accept-charset="utf-8">
+    <h3 class="section-header">
+      <input type="text" name="search" placeholder="Search" id="search-field"
+             title="Type to search, Up and Down to navigate, Enter to load">
+    </h3>
+  </form>
+
+  <ul id="search-results" class="initially-hidden"></ul>
+</nav>
+
+
+  <div id="file-metadata">
+    <nav id="file-list-section" class="section">
+  <h3 class="section-header">Defined In</h3>
+  <ul>
+    <li>hd.rb
+  </ul>
+</nav>
+
+    
+  </div>
+
+  <div id="class-metadata">
+    
+    
+    
+    <!-- Method Quickref -->
+<nav id="method-list-section" class="section">
+  <h3 class="section-header">Methods</h3>
+
+  <ul class="link-list">
+    
+    <li><a href="#method-c-narray_to_string">::narray_to_string</a>
+    
+    <li><a href="#method-c-select">::select</a>
+    
+  </ul>
+</nav>
+
+  </div>
+
+  <div id="project-metadata">
+    
+    <nav id="classindex-section" class="section project-section">
+  <h3 class="section-header">Class and Module Index</h3>
+
+  <ul class="link-list">
+  
+    <li><a href="./HD.html">HD</a>
+  
+    <li><a href="./HD/Chord.html">HD::Chord</a>
+  
+    <li><a href="./HD/HDConfig.html">HD::HDConfig</a>
+  
+    <li><a href="./HD/NArray.html">HD::NArray</a>
+  
+    <li><a href="./HD/Ratio.html">HD::Ratio</a>
+  
+    <li><a href="./HD/WeightedArray.html">HD::WeightedArray</a>
+  
+  </ul>
+</nav>
+
+  </div>
+</nav>
+
+<div id="documentation">
+  <h1 class="module">module HD</h1>
+
+  <div id="description" class="description">
+    
+<h1 id="label-HD"><a href="HD.html">HD</a></h1>
+
+<h2 id="label-A+module+for+measuring+harmonic+distance+in+just+intonation">A module for measuring harmonic distance in just intonation</h2>
+
+<p>This module takes much of its inspiration from two sources:</p>
+
+<p>The more general theoretical source is James Tenney’s measurement of
+“Harmonic Distance”, both in the way that harmonic distance is measured
+across a single interval and in the features given that compute the HD-sum
+of a given pitch aggregate.</p>
+
+<p>The other theoretical source, specific to just intonation performance, is
+the range of “tuneable intervals” discussed by Marc Sabat and Wolfgang von
+Schweinitz. The “tuneable intervals” are a list of intervals that can be
+tuned in a single step by ear, with reasonable accuracy.</p>
+
+<p>(In an interesting parallel between the work of Tenney and Sabat, this list
+of intervals does not include anything smaller than 8/7 or anything too
+close to a 2/1 octave. This parallels Tenney’s recognition that lower-limit
+prime ratios create a larger bandwidth of tolerance in which the ear
+perceives nearby complex ratios as “out of tune” simpler ratios.)</p>
+
+  </div><!-- description -->
+
+  
+  
+  
+  <section id="5Buntitled-5D" class="documentation-section">
+    
+
+    
+
+    
+    <!-- Constants -->
+    <section id="constants-list" class="section">
+      <h3 class="section-header">Constants</h3>
+      <dl>
+      
+        <dt id="PRIMES">PRIMES
+        
+        <dd class="description"><p>A list of the prime numbers in use for a particular musical application. In
+this case, the primes stop at 23 as that is the upper limit for many
+musical compositions, and using a smaller list of primes makes processing
+easier (since the list is iterated over often).</p>
+
+<p>Changing the constant is simple, but must be deliberate:</p>
+
+<pre class="ruby"><span class="ruby-keyword">module</span> <span class="ruby-constant">HD</span>
+  <span class="ruby-constant">PRIMES</span> = <span class="ruby-operator">::</span><span class="ruby-constant">NArray</span>[<span class="ruby-operator">...</span>]
+<span class="ruby-keyword">end</span>
+</pre>
+
+<p>This way, it cannot be “accidentally” changed.</p>
+        
+      
+      </dl>
+    </section>
+    
+
+    
+
+    <!-- Methods -->
+    
+     <section id="public-class-5Buntitled-5D-method-details" class="method-section section">
+      <h3 class="section-header">Public Class Methods</h3>
+
+    
+      <div id="method-c-narray_to_string" class="method-detail ">
+        
+        <div class="method-heading">
+          <span class="method-name">narray_to_string</span><span
+            class="method-args">(n)</span>
+          <span class="method-click-advice">click to toggle source</span>
+        </div>
+        
+
+        <div class="method-description">
+          
+          
+          
+
+          
+          <div class="method-source-code" id="narray_to_string-source">
+            <pre><span class="ruby-comment"># File hd.rb, line 375</span>
+<span class="ruby-keyword">def</span> <span class="ruby-keyword">self</span>.<span class="ruby-identifier">narray_to_string</span>(<span class="ruby-identifier">n</span>)
+  <span class="ruby-identifier">n</span>.<span class="ruby-identifier">to_a</span>.<span class="ruby-identifier">to_s</span>
+<span class="ruby-keyword">end</span></pre>
+          </div><!-- narray_to_string-source -->
+          
+        </div>
+
+        
+
+        
+      </div><!-- narray_to_string-method -->
+
+    
+      <div id="method-c-select" class="method-detail ">
+        
+        <div class="method-heading">
+          <span class="method-name">select</span><span
+            class="method-args">(r = Ratio.new, config = HDConfig.new)</span>
+          <span class="method-click-advice">click to toggle source</span>
+        </div>
+        
+
+        <div class="method-description">
+          
+          <p>Select: Provide this thing with a base ratio and a config file (with prime
+weights  &amp; tuneable intervals) and it’ll choose a new pitch based on
+that prime number weighting. Supremely useful for finding the next interval
+to use based on harmonic distance, without being entirely deterministic.
+Essentially creates a distribution of probabilities to shoot for</p>
+
+<p>Ideas: r could be the current origin at all times. So that would create a
+certain cloud around a particular pitch. When that cloud encroaches on
+another origin, the cloud may change its origin. That’s left for a
+different controller module.</p>
+          
+
+          
+          <div class="method-source-code" id="select-source">
+            <pre><span class="ruby-comment"># File hd.rb, line 543</span>
+<span class="ruby-keyword">def</span> <span class="ruby-keyword">self</span>.<span class="ruby-identifier">select</span>(<span class="ruby-identifier">r</span> = <span class="ruby-constant">Ratio</span>.<span class="ruby-identifier">new</span>, <span class="ruby-identifier">config</span> = <span class="ruby-constant">HDConfig</span>.<span class="ruby-identifier">new</span>)
+  <span class="ruby-identifier">intervals</span> = <span class="ruby-identifier">config</span>.<span class="ruby-identifier">tuneable</span>.<span class="ruby-identifier">map</span> {<span class="ruby-operator">|</span><span class="ruby-identifier">x</span><span class="ruby-operator">|</span> <span class="ruby-identifier">r</span> * <span class="ruby-identifier">x</span>}
+  <span class="ruby-identifier">intervals</span> = <span class="ruby-constant">WeightedArray</span>.<span class="ruby-identifier">new</span>(*<span class="ruby-identifier">intervals</span>)
+  <span class="ruby-identifier">puts</span> <span class="ruby-node">&quot;#{intervals}&quot;</span>
+  <span class="ruby-identifier">intervals</span>.<span class="ruby-identifier">weights</span> = <span class="ruby-identifier">intervals</span>.<span class="ruby-identifier">map</span> <span class="ruby-keyword">do</span> <span class="ruby-operator">|</span><span class="ruby-identifier">x</span><span class="ruby-operator">|</span> 
+    <span class="ruby-keyword">if</span> <span class="ruby-identifier">x</span>.<span class="ruby-identifier">distance</span> <span class="ruby-operator">==</span> <span class="ruby-value">0.0</span>
+      <span class="ruby-value">0.0</span>
+    <span class="ruby-keyword">else</span>
+      <span class="ruby-value">1.0</span> <span class="ruby-operator">/</span> <span class="ruby-identifier">x</span>.<span class="ruby-identifier">distance</span>
+    <span class="ruby-keyword">end</span>
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-identifier">puts</span> <span class="ruby-node">&quot;#{intervals.weights}&quot;</span>
+  <span class="ruby-identifier">intervals</span>.<span class="ruby-identifier">choose</span>
+<span class="ruby-keyword">end</span></pre>
+          </div><!-- select-source -->
+          
+        </div>
+
+        
+
+        
+      </div><!-- select-method -->
+
+    
+    </section><!-- public-class-method-details -->
+  
+  </section><!-- 5Buntitled-5D -->
+
+</div><!-- documentation -->
+
+
+<footer id="validator-badges">
+  <p><a href="http://validator.w3.org/check/referer">[Validate]</a>
+  <p>Generated by <a href="https://github.com/rdoc/rdoc">RDoc</a> 3.12.
+  <p>Generated with the <a href="http://deveiate.org/projects/Darkfish-Rdoc/">Darkfish Rdoc Generator</a> 3.
+</footer>
+

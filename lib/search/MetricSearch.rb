@@ -4,9 +4,9 @@
 module MM
 	class MetricSearch
     attr_accessor :path
-    def initialize opts
+    def initialize opts = {}
       # The following options should be common to all searches
-			@start_vector				= opts[:start_vector]
+			@start_vector				= opts[:start_vector]			|| (raise ArgumentError, "opts[:start_vector] required")
 			@debug_level				= opts[:debug_level]			|| 1
 			@epsilon						= opts[:epsilon]					|| 0.01
 			@max_iterations			= opts[:max_iterations]		|| 1000
@@ -40,7 +40,7 @@ module MM
 											throw :jump_back
 										end
 										# Get the index of the movement that is at the current index level
-										possible_point = get_possible_point(@cost_vector, @interval_index)
+										possible_point = get_possible_point(cost_vector, @interval_index)
 									end
 									if @banned_points.has_key? possible_point.hash
 										throw :jump_back
@@ -57,7 +57,7 @@ module MM
 								begin
 									current_coordinates = @get_coords.(@path[-1], @start_vector)
 								rescue RangeError => er
-									handle_range_error(er) ? retry : raise er
+									handle_range_error(er) ? retry : (raise er)
 								end
 								# Find the cost of the prospective point
 								prospective_cost = get_cost(current_coordinates, @goal_vector)
@@ -94,7 +94,7 @@ module MM
 		def prepare_search
 			@current_point = @start_vector
 			@interval_index = 0
-			@current_cost = get_cost(@get_coords.(@current_point, @start_vector), goal_vector)
+			@current_cost = get_cost(@get_coords.(@current_point, @start_vector), @goal_vector)
 			@best_point_so_far = @current_point
 			@best_cost_so_far = @current_cost
 			@path = [@start_vector]
@@ -114,7 +114,7 @@ module MM
 		
 		# Gets a point from indices
 		def get_possible_point(cost, interval_index)
-			ind_x, ind_y = sort_by_cost(@cost_vector, @interval_index)
+			ind_x, ind_y = MM.sort_by_cost(cost, @interval_index)
 			HD.change_inner_interval(@current_point, ind_y, HD.r(*@tuneable[ind_x]))
 		end
 		
@@ -128,19 +128,19 @@ module MM
 		end
 		
 		def debug_each_iteration iter
-			case @debug_level
-			when > 1 # Prints out a play-by-play
+			case 
+			when @debug_level > 1 # Prints out a play-by-play
 				puts "Iteration #{iter}"
 				puts "Now #{@current_cost} away at #{@current_point.to_a}"
-			when > 0
+			when @debug_level > 0
         # Tells us where we are with each large-scale movement
         print "\t\t\t\t\rIteration #{iter}: #{@current_cost} away at #{@current_point.to_a}"
 			end
 		end
 		
 		def debug_final_report
-			case @debug_level
-			when > 0
+			case 
+			when @debug_level > 0
 				puts "\nSuccess at: \t#{@current_point.to_a}"
 	      puts "Distance: \t#{get_cost(@get_coords.(@current_point), 0)}"
 	      puts "Cost: \t\t#{@current_cost}"
@@ -179,27 +179,27 @@ module MM
 	end
   
 	class OLMSearch < MetricSearch
-		attr_accessor :tuneable
+		attr_accessor :tuneable, :goal_vector, :start_vector
     
 		def initialize opts
 			super opts
 			@hd_config					= opts[:hd_config]				|| HD::HDConfig.new
       @angler							= opts[:angler]						|| (raise ArgumentError, "opts[:angler] required")
-      @is_scaled?					= opts[:is_scaled]				|| false
+      @is_scaled					= opts[:is_scaled]				|| false
 			@tuning_range				= opts[:tuning_range]			|| [HD.r(2,3), HD.r(16,1)]
       # Reference methods from the angler
-			if @is_scaled?
-				@get_coords 			= angler.method(:get_scaled_coordinates_from_reference)
-				@get_angle 				= angler.method(:get_scaled_angle)
+			if @is_scaled
+				@get_coords 			= @angler.method(:get_scaled_coordinates_from_reference)
+				@get_angle 				= @angler.method(:get_scaled_angle)
 			else
-				@get_coords 			= angler.method(:get_coordinates_from_reference)
-				@get_angle 				= angler.method(:get_angle)
+				@get_coords 			= @angler.method(:get_coordinates_from_reference)
+				@get_angle 				= @angler.method(:get_angle)
 			end
 			# Load list of tuneable intervals, reject those that won't work
 			@hd_config.reject_untuneable_intervals!
 			# Sort intervals by harmonic distance
-			@hd_config.tuneable.sort_by! {|x| x.distance(HD.r, hd_config)}
-			@tuneable = hd_config.tuneable
+			@hd_config.tuneable.sort_by! {|x| x.distance(HD.r, @hd_config)}
+			@tuneable = @hd_config.tuneable
       
 			@debug_level > 0 ? (print "\n== Getting tuneable data...") : false
 	    @tuneable_data			= opts[:tuneable_data]		|| get_tuneable_data(NArray.to_na(@start_vector), @get_coords, @hd_config)
@@ -211,7 +211,7 @@ module MM
 		## HELPER METHODS ##
 		####################
 		# Tuneable data method
-	  def self.get_tuneable_data(origin, get_coords, hd_config)
+	  def get_tuneable_data(origin, get_coords, hd_config)
 	    # Initialize an empty NArray with all data
 	    tuneable_data = NArray.float(2, hd_config.tuneable.size, origin.shape[1]-1)
 	    # TODO: Vectorize these loops!
@@ -267,13 +267,13 @@ module MM
 		# Prepare the final data report, specific to OLM tuning
 		def prepare_data
 			super
-			@data[:tuneable_data] => @tuneable_data
-			@data[:@lowest_old] => @lowest_old
+			@data[:tuneable_data] = @tuneable_data
+			@data[:@lowest_old] = @lowest_old
 		end
 		# Send the final report
 		def debug_final_report
 			super
-			if debug_level > 0
+			if @debug_level > 0
 	      puts "Lowest OLD: \t#{@lowest_old[0].to_a}"
 	      puts "Angle: \t\t#{@get_angle.(@current_point, @start_vector)}"
 			end

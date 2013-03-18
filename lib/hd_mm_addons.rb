@@ -18,10 +18,6 @@
 # correctly to both an HD::Ratio (as in combinatorial metrics) and an NArray
 # (as in linear metrics). 
 
-# point toward your local copy of the hd.rb and mm.rb files
-require './hd.rb'
-require '../Morphological-Metrics/mm.rb'
-
 module MM
   # Returns a Proc to be used as an intra_delta in a given DistConfig object. This Proc measures the harmonic distance between successive intervals. It takes an HD::HDConfig object (a reference), which allows it to change as the HDConfig object's settings are changed.
   # 

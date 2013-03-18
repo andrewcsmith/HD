@@ -1,8 +1,3 @@
-require './hd.rb'
-require '../Morphological-Metrics/mm.rb'
-require './deltas.rb'
-require './get_angle.rb'
-
 module MM
   # Need to populate the list of tuneable intervals with how they change
   # things We should only need to do this once -- from then on, we're always

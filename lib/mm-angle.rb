@@ -1,8 +1,3 @@
-require '../Morphological-Metrics/mm.rb'
-require './hd.rb'
-require './get_angle.rb'
-require './deltas.rb'
-
 module MM
 
     # The Angle class provides a simple way of projecting a bounded

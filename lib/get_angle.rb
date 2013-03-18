@@ -1,8 +1,3 @@
-require './hd.rb'
-require '../Morphological-Metrics/mm.rb'
-require './deltas.rb'
-require 'nokogiri'
-
 module MM
   def self.get_hd_proc(cfg = HD::HDConfig.new)
     hd_proc = ->(m_diff, n_diff) {
