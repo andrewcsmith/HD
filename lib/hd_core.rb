@@ -228,15 +228,15 @@ module HD
     end
     
     def dec
-      return self[0].to_f / self[1]
+      self[0].to_f / self[1]
     end
     
     def to_f
-      return self.dec
+      self.dec
     end
     
     def abs
-      return Ratio[self[0].abs, self[1].abs]
+      Ratio[self[0].abs, self[1].abs]
     end
     
     def pc_space
