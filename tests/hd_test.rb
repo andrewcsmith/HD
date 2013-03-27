@@ -33,6 +33,10 @@ class HDTest < Test::Unit::TestCase
 		end
 	end
 	
+	def test_prime_weights_setter_should_fill_array_with_zeros
+		assert_equal(NArray[2,3,5,7,0,0,0,0,0].to_f, HD::HDConfig.new(:prime_weights => [2,3,5,7]).prime_weights)
+	end
+	
 	def test_ratios_should_be_comparable
 		x = HD::Ratio[3,2]
 		y = HD::Ratio[4,3]

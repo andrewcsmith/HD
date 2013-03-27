@@ -60,7 +60,8 @@ module HD
   # [+:tuneable_file+]  Location of a file with the list of tuneable intervals
   # 
   class HDConfig
-    attr_accessor :pc_only, :prime_weights, :tuneable
+    attr_accessor :pc_only, :tuneable
+		attr_reader :prime_weights
     
     # Creates a new HDConfig object with the following default options:
     # * pc_only: false
@@ -68,36 +69,24 @@ module HD
     # * tuneable: List from Marc Sabat's "Analysis of Tuneable Intervals on Violin and Cello"
     def initialize(options = { })
       @options = options
-      @prime_weights =    options[:prime_weights]   || PRIMES.dup
-      @pc_only =          options[:pc_only]         || false
-      @tuneable_file =    options[:tuneable_file]   || "/Users/acsmith/workspaces/HD/lib/tuneable.txt"
-      
-      # Confirm that the :prime_weights item is an NArray
-      @prime_weights = ::NArray.to_na(@prime_weights)
-      
-      if @prime_weights.size != PRIMES.size
-        p = ::NArray.float(PRIMES.size)
-        @prime_weights.to_a.each_with_index do |x, i|
-          p[i] = x
-        end
-        @prime_weights = p
-      end
+      self.prime_weights =	options[:prime_weights]   || PRIMES.dup
+      @pc_only =          	options[:pc_only]         || false
+      @tuneable_file =    	options[:tuneable_file]   || "/Users/acsmith/workspaces/HD/lib/tuneable.txt"
       
       pattern = /(\d+)\/(\d+)/
-      @tuneable = []
       # Reads in the entire list of tuneable intervals from a file
-      File.open(@tuneable_file, "r") do |intervals|
-        intervals.readlines.each do |line|
-          if (pattern =~ line) != nil
-            full = Regexp.last_match
-            @tuneable << HD::Ratio[full[1].to_i, full[2].to_i]
-          end
+      File.open(@tuneable_file) do |intervals|
+        @tuneable = intervals.readlines.inject([]) do |tuneable, line|
+					# If the line doesn't contain a matching pattern, it skips over that line by
+					# returning the unaltered memo.
+					pattern =~ line ? (tuneable << HD::Ratio[$1.to_i, $2.to_i]) : tuneable
         end
       end
     end
     
-    # Setter for [+:prime_weights+]. Any unspecified weights past the highest value in the setter array are set to 0.
-    def prime_weights=(new_weights)
+    # Setter for [+:prime_weights+]. Any unspecified weights past the highest value
+    # in the setter array are set to 0.
+		def prime_weights=(new_weights)
       if new_weights.size != PRIMES.size
         PRIMES.size.times do |i|
           if new_weights[i] == nil
@@ -433,7 +422,7 @@ module HD
     true
   end
   
-  # Convenient method of changing the inner-interval of a vector
+  # Changes the inner-interval of a vector
   def self.change_inner_interval(v, index, interval)
     vector_delta = MM.vector_delta(v, 1, MM::DELTA_FUNCTIONS[:hd_ratio], MM::INTERVAL_FUNCTIONS[:pairs])
     vector_delta[true,index] = interval
