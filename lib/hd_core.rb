@@ -70,7 +70,7 @@ module HD
       @options = options
       @prime_weights =    options[:prime_weights]   || PRIMES.dup
       @pc_only =          options[:pc_only]         || false
-      @tuneable_file =    options[:tuneable_file]   || "tuneable.txt"
+      @tuneable_file =    options[:tuneable_file]   || "/Users/acsmith/workspaces/HD/lib/tuneable.txt"
       
       # Confirm that the :prime_weights item is an NArray
       @prime_weights = ::NArray.to_na(@prime_weights)
