@@ -68,10 +68,12 @@ module HD
     # * prime_weights: [2,3,5,7,11,13,17,19,23]
     # * tuneable: List from Marc Sabat's "Analysis of Tuneable Intervals on Violin and Cello"
     def initialize(options = { })
+			# Assumes that there is a file called "tuneable.txt" in a "data" subdirectory of this script
+			default_tuneable_file = File.open(File.dirname(File.expand_path(__FILE__)) + "/../data/tuneable.txt")
       @options = options
       self.prime_weights =	options[:prime_weights]   || PRIMES.dup
       @pc_only =          	options[:pc_only]         || false
-      @tuneable_file =    	options[:tuneable_file]   || "/Users/acsmith/workspaces/HD/lib/tuneable.txt"
+      @tuneable_file =    	options[:tuneable_file]   || default_tuneable_file
       
       pattern = /(\d+)\/(\d+)/
       # Reads in the entire list of tuneable intervals from a file
