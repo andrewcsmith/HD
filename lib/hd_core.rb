@@ -137,6 +137,7 @@ module HD
   # with the Morphological Metrics library.
   class Ratio < NVector
     include Enumerable
+		include Comparable
     # require 'rational'
     
     # Default value is 1/1. This make it easier to provide an origin of 1/1
@@ -364,13 +365,13 @@ module HD
     # Returns the harmonic distance (as a "city block" measurement) between
     # two points. If no second point is specified, then it is assumed that we
     # want the distance from a 1/1 origin.  If either point in question lies
-    # outside of the harmonic space, then the distance is _Infinity_. This
+    # outside of the harmonic space, then the distance is <tt>Infinity</tt>. This
     # comes into play in a number of ways, but the most common is as a filter
     # for the set of all tuneable intervals. Working in (for example) a
     # 7-limit harmonic space would require that the interval of 11/4 (while a
     # tuneable interval) would not be eligible for use. Therefore, a distance
     # of Infinity allows this to be filtered out of the list of tuneable
-    # intervals. (See the method HDConfig#reject_untuneable_intervals! for
+    # intervals. (See the method <tt>HDConfig#reject_untuneable_intervals!</tt> for
     # more information).
     def distance(origin = Ratio[1,1], config = HD::HDConfig.new)
       # Take weights from the config argument
@@ -406,22 +407,6 @@ module HD
         return self[0].to_f / self[1] <=> other[0].to_f / other[1]
       elsif other.is_a? Numeric
         return self.to_f <=> other
-      end
-    end
-    
-    def < other
-      if other.is_a? HD::Ratio
-        return self[0].to_f / self[1] < other[0].to_f / other[1]
-      elsif other.is_a? Numeric
-        return self.to_f < other
-      else
-        raise Exception.new("WTF.")
-      end
-    end
-    
-    def > other
-      if other.class == HD::Ratio
-        return self[0].to_f / self[1] > other[0].to_f / other[1]
       end
     end
     

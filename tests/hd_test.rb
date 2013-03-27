@@ -32,5 +32,15 @@ class HDTest < Test::Unit::TestCase
 			end
 		end
 	end
+	
+	def test_ratios_should_be_comparable
+		x = HD::Ratio[3,2]
+		y = HD::Ratio[4,3]
+		
+		assert_equal(1, x <=> y)
+		assert_equal(true, x > y)
+		assert_equal(false, x < y)
+		assert_equal(true, x != y)
+	end
   
 end
