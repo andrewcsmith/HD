@@ -4,7 +4,6 @@ require 'test/unit'
 # TODO: Work all of these difference distances out by hand, to make sure that it's all correct. Right now, I'm just asserting that these things I've done today will stay the same.
 
 class MMTest < Test::Unit::TestCase
-  
   def test_strings
     input_string = "1/1 4/3 16/7 96/49 216/49 864/245"
     ratios = HD::Ratio.from_s(input_string)
