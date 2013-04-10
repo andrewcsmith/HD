@@ -1,6 +1,4 @@
-require './hd.rb'
-require '../Morphological-Metrics/mm.rb'
-require './hd_mm_addons.rb'
+require '../hd-mm.rb'
 require 'test/unit'
 
 # TODO: Work all of these difference distances out by hand, to make sure that it's all correct. Right now, I'm just asserting that these things I've done today will stay the same.
