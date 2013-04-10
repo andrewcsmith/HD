@@ -1,4 +1,4 @@
-require './mm-angle.rb'
+require '../hd-mm.rb'
 require 'test/unit'
 
 class MMTest < Test::Unit::TestCase
