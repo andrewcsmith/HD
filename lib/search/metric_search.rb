@@ -51,7 +51,7 @@ module MM
 										get_candidate = get_candidate(cost_vector, @interval_index)
 									end
 									# If the point is banned, jump back, otherwise add it to the path
-									@banned_points.has_key? candidate.hash ? throw(:jump_back) : (@path << candidate)
+									@banned_points.has_key?(candidate.hash) ? throw(:jump_back) : (@path << candidate)
 								# When @interval_index gets too big, we may have an IndexError
 								# This should be avoided by the first line of the IndexError block
 								rescue IndexError => er
