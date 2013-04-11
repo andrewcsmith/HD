@@ -169,14 +169,6 @@ module MM
     }
   end
   
-  def self.sort_by_cost(cost, interval_index)
-    ind = cost.eq cost.sort[interval_index] # Sort by cost
-    ind = ind.where[0] # Find the lowest possible cost
-    ind_x = ind % cost.shape[0]
-    ind_y = ind / cost.shape[0]
-    return [ind_x, ind_y]
-  end
-  
 
   # Deprecated: Use get_harmonic_distance_delta
   # Returns a Proc for harmonic distance, but with a permanent HDConfig Object attached
