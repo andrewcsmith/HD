@@ -42,10 +42,23 @@ module MM
 										# Get the index of the movement that is at the current index level
 										possible_point = get_possible_point(cost_vector, @interval_index)
 									end
+<<<<<<< Local Changes
+<<<<<<< Local Changes
+									@banned_points.has_key? possible_point.hash ? throw(:jump_back) : @path
+									end
+									@path << possible_point
+=======
 									if @banned_points.has_key? possible_point.hash
 										throw :jump_back
 									end
 									@path << possible_point
+>>>>>>> External Changes
+=======
+									if @banned_points.has_key? possible_point.hash
+										throw :jump_back
+									end
+									@path << possible_point
+>>>>>>> External Changes
 									# When @interval_index gets too big, we may have an IndexError
 								rescue IndexError => er
 									puts "\nIndexError: #{er.message}"
