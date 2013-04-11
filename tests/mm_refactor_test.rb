@@ -14,6 +14,7 @@ class ComboTest < Test::Unit::TestCase
 	end
 
 	# Makes sure the ordered_2_combinations method returns pairs
+	# Each element is an NArray, where the last dimension is 2
 	def test_ordered_2_combinations_should_return_pairs
 		MM.ordered_2_combinations(@morph_array).each do |x|
 			assert_equal(2, x.shape[-1])
@@ -50,6 +51,17 @@ class ComboTest < Test::Unit::TestCase
 		MM::MAPPER_FUNCTIONS[:narray_pairs].call(morph_combos) do |a, b|
 			assert(a.is_a?(NArray) && a.dim == 2, "A is a #{a.class} of dim = #{a.dim}")
 			assert(b.is_a?(NArray) && b.dim == 2, "B is a #{b.class} of dim = #{b.dim}")
+		end
+	end
+	
+	# Asset that the output of mapper into the ordered_2_combinations is recursive
+	def test_combinations_to_mapper_should_be_accepted_by_combinations
+		morph_combos = MM.ordered_2_combinations(@morph_array)
+		MM::MAPPER_FUNCTIONS[:narray_pairs].call(morph_combos) do |a, b|
+			assert_nothing_raised do
+				MM.ordered_2_combinations a
+				MM.ordered_2_combinations b
+			end
 		end
 	end
 end

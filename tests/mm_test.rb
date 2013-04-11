@@ -103,19 +103,13 @@ class MMTest < Test::Unit::TestCase
     v2 = NArray[HD.r(4,3), HD.r(6,5), HD.r(9,8), HD.r(5,3), HD.r(9,5)]
 
     # Harmonic Distance Configurations
-
     d1_config = HD::HDConfig.new
-    d1 = MM.get_harmonic_distance_delta(d1_config)
-
+		# Morphological Metric Configurations
     c_ucm = MM::DistConfig.new
     c_ucm.scale = :absolute
-    # One the usage of a specified proc lets the user specify a config object
-    # to use (prime_weights, etc)
-    c_ucm.intra_delta = MM.get_harmonic_distance_delta(d1_config)
-    # At this point, we are in the logarithmic domain so we can resort to
-    # subtraction to find the difference
+		c_ucm.intra_delta = MM.get_harmonic_distance_delta(d1_config)
     c_ucm.inter_delta = MM::DELTA_FUNCTIONS[:abs_diff]
-    
+		
     assert_in_delta(0.028, MM.dist_ucm(v1, v2, c_ucm), 0.001)
     # Assert commutative equality
     assert(MM.dist_ucm(v2, v1, c_ucm) == MM.dist_ucm(v1, v2, c_ucm))
