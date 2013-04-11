@@ -2,7 +2,6 @@ require '../hd-mm.rb'
 require 'test/unit'
 
 class MMTest < Test::Unit::TestCase
-  
   def test_angle
     v1 = NArray[[1, 1], [2, 1], [3, 2], [2, 3], [16, 15], [32, 45], [8, 5], [6, 5], [9, 5]]
     o = NArray[[1, 1], [2, 1], [3, 2], [2, 3], [16, 9], [32, 27], [8, 3], [2, 1], [3, 1]]
