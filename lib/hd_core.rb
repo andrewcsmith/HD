@@ -68,7 +68,8 @@ module HD
     # * prime_weights: [2,3,5,7,11,13,17,19,23]
     # * tuneable: List from Marc Sabat's "Analysis of Tuneable Intervals on Violin and Cello"
     def initialize(options = { })
-			# Assumes that there is a file called "tuneable.txt" in a "data" subdirectory of this script
+			# Assumes that there is a file called "tuneable.txt" in a "data" subdirectory of
+			# the superdirectory of this script
 			default_tuneable_file = File.open(File.dirname(File.expand_path(__FILE__)) + "/../data/tuneable.txt")
       @options = options
       self.prime_weights =	options[:prime_weights]   || PRIMES.dup
@@ -129,9 +130,8 @@ module HD
   class Ratio < NVector
     include Enumerable
 		include Comparable
-    # require 'rational'
     
-    # Default value is 1/1. This make it easier to provide an origin of 1/1
+    # Default value is 1/1. This makes it easier to provide an origin of 1/1
     # for any distance function.
     def initialize(*args)
       super(args[0], args[1])
