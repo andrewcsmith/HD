@@ -8,7 +8,7 @@ module MM
 		attr_accessor :path
 		
 		def initialize opts = {}
-      # The following options should be common to all searches
+			# The following options should be common to all searches
 			@start_vector				= opts[:start_vector]			|| (raise ArgumentError, "opts[:start_vector] required")
 			@debug_level				= opts[:debug_level]			|| 1
 			@epsilon						= opts[:epsilon]					|| 0.01
@@ -77,7 +77,7 @@ module MM
 								if @current_cost < @epsilon
 									@current_point = @path[-1]
 									prepare_result
-	                throw :success
+									throw :success
 								else # Otherwise, advance to the next iteration without jumping back
 									initial_run = true
 									throw :keep_going
@@ -141,8 +141,8 @@ module MM
 				puts "Iteration #{iter}"
 				puts "Now #{@current_cost} away at #{@current_point.to_a}"
 			when @debug_level > 0
-        # Tells us where we are with each large-scale movement
-        print "\t\t\t\t\rIteration #{iter}: #{@current_cost} away at #{@current_point.to_a}"
+				# Tells us where we are with each large-scale movement
+				print "\t\t\t\t\rIteration #{iter}: #{@current_cost} away at #{@current_point.to_a}"
 			end
 		end
 		
@@ -150,8 +150,8 @@ module MM
 			case 
 			when @debug_level > 0
 				puts "\nSuccess at: \t#{@current_point.to_a}"
-	      puts "Distance: \t#{get_cost(@get_coords.(@current_point), 0)}"
-	      puts "Cost: \t\t#{@current_cost}"
+				puts "Distance: \t#{get_cost(@get_coords.(@current_point), 0)}"
+				puts "Cost: \t\t#{@current_cost}"
 			end
 		end
 		
