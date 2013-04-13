@@ -73,7 +73,7 @@ module MM
 			NMath.sqrt(((current_coordinates - goal_vector) ** 2).sum)
 		end
 		# cost_vector is an NArray where each 
-		def get_cost_vector
+		def get_candidate_list
 			NMath.sqrt(((@tuneable_data - @goal_vector) ** 2).sum(0))
 		end
 		# Takes care of the RangeError and retries

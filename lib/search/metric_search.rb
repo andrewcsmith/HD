@@ -32,23 +32,23 @@ module MM
 						catch :keep_going do
 							catch :jump_back do
 								# cost_vector is a list of all adjacent points with their respective costs
-								cost_vector = get_cost_vector
+								candidate_list = get_candidate_list
 								begin # IndexError block
 									# if we've run out of all possible points, step back and keep trying
-									@interval_index >= cost_vector.size ? throw(:jump_back) : false
-									# load up our candidate
-									candidate = get_candidate(cost_vector, @interval_index)
+									@interval_index >= candidate_list.size ? throw(:jump_back) : false
+									# load up the candidate from our cost_vector
+									candidate = get_candidate(candidate_list, @interval_index)
 									# skip all candidates that are banned or already in the path
 									while (@banned_points.has_key? candidate.hash) || (@path.include? candidate)
 										@interval_index += 1
 										# If we've exhausted all possible intervals, jump back
-										if @interval_index >= cost_vector.size
+										if @interval_index >= candidate_list.size
 											@banned_points[candidate.hash] = 1
 											@initial_run = true
 											throw :jump_back
 										end
 										# Get the index of the movement that is at the current index level
-										get_candidate = get_candidate(cost_vector, @interval_index)
+										get_candidate = get_candidate(candidate_list, @interval_index)
 									end
 									# If the point is banned, jump back, otherwise add it to the path
 									@banned_points.has_key?(candidate.hash) ? throw(:jump_back) : (@path << candidate)
@@ -115,15 +115,15 @@ module MM
 			raise "Must define :get_cost in subclass of MM::MetricSearch"
 		end
 		
-		def get_cost_vector
+		def get_candidate_list
 			# Null for the dummy class
 			# Must define in subclass
-			raise "Must define :get_cost_vector in subclass of MM::MetricSearch"
+			raise "Must define :get_candidate_list in subclass of MM::MetricSearch"
 		end
 		
 		# Gets a point from indices
-		def get_candidate(cost, interval_index)
-			ind_x, ind_y = MM.sort_by_cost(cost, interval_index)
+		def get_candidate(candidate_list, interval_index)
+			ind_x, ind_y = MM.sort_by_cost(candidate_list, interval_index)
 			HD.change_inner_interval(@current_point, ind_y, HD.r(*@tuneable[ind_x]))
 		end
 		
