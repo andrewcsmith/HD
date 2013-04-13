@@ -13,17 +13,21 @@ class ComboTest < Test::Unit::TestCase
 		@float_array = NArray[4.5, 2.3, 0, -3.2, 8]
 	end
 
-	# Makes sure the ordered_2_combinations method returns pairs
-	# Each element is an NArray, where the last dimension is 2
-	def test_ordered_2_combinations_should_return_pairs
-		MM.ordered_2_combinations(@morph_array).each do |x|
-			assert_equal(2, x.shape[-1])
-		end
-		MM.ordered_2_combinations(@ratio_array).each do |x|
-			assert_equal(2, x.shape[-1])
-		end
-		MM.ordered_2_combinations(@float_array).each do |x|
-			assert_equal(2, x.shape[-1])
+	# For NArray, the dimensions are ranked from "inner" to "outer"
+	# ordered_2_combinations should return an NArray with dimensions of 
+	# [*n, 2, i]
+	# where n = shape of initial element
+	# (note that if the object is not an NArray this will be absent)
+	# and i = the number of combinations
+	def test_ordered_2_combinations_should_return_narray
+		c = MM.ordered_2_combinations(@morph_array)
+		assert(c.is_a?(NArray), "returned a #{c.class}")
+	end
+	def test_ordered_2_combinations_returns_shape_n_2_i
+		[@morph_array, @ratio_array, @float_array].each do |array|
+			c = MM.ordered_2_combinations(array)
+			i = (array.shape[-1]**2/2.0) - array.shape[-1]/2.0
+			assert_equal([*array.shape[0...array.dim-1],2,i], c.shape, "c is #{c.inspect} for #{array}")
 		end
 	end
 	
@@ -31,8 +35,8 @@ class ComboTest < Test::Unit::TestCase
 	def test_mapper_should_create_pairs_of_fixnums
 		float_combos = MM.ordered_2_combinations(@float_array)
 		MM::MAPPER_FUNCTIONS[:narray_pairs].call(float_combos) do |a, b|
-			assert(a.is_a?(Float), "A is a #{a.class}")
-			assert(b.is_a?(Float), "B is a #{b.class}")
+			assert(a.is_a?(Float), "A is #{a.inspect}")
+			assert(b.is_a?(Float), "B is #{b.inspect}")
 		end
 	end
 	

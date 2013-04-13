@@ -35,8 +35,9 @@ module MM
       # If the array is one-dimensional it's probably a single HD::Ratio as a 2D vector
       # Return the single float distance, same as calling a.distance(b)
       a.shape == [2] ? (return HD::Ratio[a[0],a[1]].distance(HD::Ratio[b[0],b[1]],config).abs) : false
-      # If it's a vector, then create a vector to hold all the inter-vector distances
+      # If it's more than one dimension, then create a vector to hold all the inter-vector distances
       dist_vectors = NArray.float(a.shape[1])
+			# Fill it with the distances
       for i in 0...dist_vectors.size
         dist_vectors[i] = HD::Ratio.from_na(a[true,i]).distance(HD::Ratio.from_na(b[true,i]), config).abs
       end
