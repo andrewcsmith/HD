@@ -165,14 +165,21 @@ module HD
     # of HD::Ratio objects. Example: 
     # 
     #   HD::Ratio.from_s("1/1 4/3 16/7") 
-    #   # => Array[HD.r, HD.r(4,3), HD.r(16,7)]
+    #   # => NArray[[1, 1], [4, 3], [16, 7]]
+		# 	HD::Ratio.from_s("3/2")
+		# 	# => HD
     #
     # Can also be used to convert backward from a printed array of Ratios
     # (i.e., to read in a file)
     def self.from_s s
       ratios = s.scan(/(\d+)\/(\d+)/)
       ratios.map! {|x| Ratio[x[0].to_i, x[1].to_i] }
-      ::NArray.to_na(ratios)
+      r = ::NArray.to_na(ratios)
+			# if we only give it
+			if r.shape == [2,1]
+				r = from_na r[true,0]
+			end
+			r
     end
     
     def self.from_a a
@@ -367,6 +374,8 @@ module HD
     def distance(origin = Ratio[1,1], config = HD::HDConfig.new)
       # Take weights from the config argument
       weights = config.prime_weights
+			# pc_only means that we ignore octaves
+			config.pc_only ? (weights[0] = 1.0) : false
       # Get the factors of the interval between self and the origin arg
       factors = (self.dup / origin).factors
       # The weights array and factors array must be the same size, because
@@ -432,15 +441,21 @@ module HD
   end
   
   # ==Informational methods:
-  # 
+	
   # Returns a vector of precise frequencies. Useful for annotating scores for
   # rehearsal, or for making SuperCollider mockups.
   def self.get_frequencies_from_vector(v, base = 440.0)
-    a = NArray.float(3,v.shape[1])
-    a[0..1,true] = v
-    a[2,true] = a[0,true] / a[1,true]
-    
-    b = a[2,true] * base
+    if v.dim > 1
+			a = ::NArray.float(3,v.shape[1])
+	    a[0..1,true] = v
+	    a[2,true] = a[0,true] / a[1,true]
+	    b = a[2,true] * base
+		else
+			a = ::NArray.float(3)
+			a[0..1] = v
+			a[2] = a[0] / a[1]
+			b = a[2] * base
+		end
     b
   end
   
@@ -449,17 +464,24 @@ module HD
   # dim-2: Cents deviations from the nearest 12TET pitch
   def self.get_cents_from_vector(v)
     if !v.is_a? NArray
-      v = NArray.to_na(v)
+      v = ::NArray.to_na(v)
     end
-    a = NArray.float(3,v.shape[1])
-    a[0..1,true] = v
-    a[2,true] = a[0,true] / a[1,true]
-    
-    # b is a vector of the cents deviations from 1/1, and then the deviations from the nearest et pitch
-    b = NArray.float(2,a.shape[1])
-    b[0,true] = NMath.log2(a[2,true]) * 1200.0
-    
-    b[1,true] = b[0,true].collect {|x| (x.round(-2) - x).round(1) * -1}
+		if v.dim > 1
+	    a = ::NArray.float(3,v.shape[1])
+	    a[0..1,true] = v
+	    a[2,true] = a[0,true] / a[1,true]
+	    # b is a vector of the cents deviations from 1/1, and then the deviations from the nearest et pitch
+	    b = ::NArray.float(2,a.shape[-1])
+	    b[0,true] = NMath.log2(a[2,true]) * 1200.0
+	    b[1,true] = b[0,true].collect {|x| (x.round(-2) - x).round(1) * -1}
+		else
+			a = ::NArray.float(3)
+			a[0..1] = v
+			a[2] = a[0] / a[1]
+			b = ::NArray.float(2)
+			b[0] = NMath.log2(a[2]) * 1200.0
+			b[1] = (b[0].round(-2) - b[0]).round(1) * -1
+		end
     b
   end
   
