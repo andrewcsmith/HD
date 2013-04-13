@@ -441,7 +441,7 @@ module HD
   end
   
   # ==Informational methods:
-  # 
+	
   # Returns a vector of precise frequencies. Useful for annotating scores for
   # rehearsal, or for making SuperCollider mockups.
   def self.get_frequencies_from_vector(v, base = 440.0)
