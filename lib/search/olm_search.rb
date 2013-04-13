@@ -76,6 +76,18 @@ module MM
 		def get_candidate_list
 			NMath.sqrt(((@tuneable_data - @goal_vector) ** 2).sum(0))
 		end
+		# Gets a point from indices
+		def get_candidate(candidate_list, interval_index)
+			ind_x, ind_y = MM.sort_by_cost(candidate_list, interval_index)
+			HD.change_inner_interval(@current_point, ind_y, HD.r(*@tuneable[ind_x]))
+		end
+		
+		def prepare_search
+			super
+			@current_cost = get_cost(@get_coords.(@current_point, @start_vector), @goal_vector)
+			@best_cost_so_far = @current_cost
+		end
+		
 		# Takes care of the RangeError and retries
 		def handle_range_error
 			puts "\nSeem to have a RangeError -- reordering"

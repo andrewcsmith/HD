@@ -100,12 +100,18 @@ module MM
 		
 		def prepare_search
 			@current_point = @start_vector
-			@interval_index = 0
-			@current_cost = get_cost(@get_coords.(@current_point, @start_vector), @goal_vector)
 			@best_point_so_far = @current_point
-			@best_cost_so_far = @current_cost
+			@interval_index = 0
 			@path = [@start_vector]
 			@initial_run = true
+
+			# These will used the overriden get_cost methods
+			begin
+				@current_cost = get_cost
+				@best_cost_so_far = @current_cost
+			rescue ArgumentError => e
+				# If this is called, then it is because the subclass overrode get_cost to use multiple arguments
+			end
 		end
 		
 		# Finds the cost of a given possible point
@@ -122,8 +128,9 @@ module MM
 		
 		# Gets a point from indices
 		def get_candidate(candidate_list, interval_index)
-			ind_x, ind_y = MM.sort_by_cost(candidate_list, interval_index)
-			HD.change_inner_interval(@current_point, ind_y, HD.r(*@tuneable[ind_x]))
+			# Null for the dummy class
+			# Must define in subclass
+			raise "Must define :get_candidate in subclass of MM::MetricSearch"
 		end
 		
 		def prepare_result
