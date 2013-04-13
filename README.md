@@ -17,7 +17,8 @@ The other theoretical sources, specific to the performance of music in just into
 	HD.r(3,2).distance(HD.r(4,3), HD::HDConfig.new(:pc_only => true)) # => 3.169925
 	# ...or to double the effect of octave displacement
 	HD.r(3,2).distance(HD.r(4,3), HD::HDConfig.new(:prime_weights => [4, 3])) # => 9.169925
-	
+
+## Informational methods
 	# You can also get useful info for annotating scores or making SuperCollider mockups
 	# Like the overall cents and the deviation of the interval from the nearest 12TET pitch (rounded)
 	HD.get_cents_from_vector([HD.r(4,3), HD.r(3,2)]) # => NArray.float(2,2): [ [ 498.045, -2.0 ], [ 701.955, 2.0 ] ] 
@@ -28,13 +29,13 @@ The other theoretical sources, specific to the performance of music in just into
 	# These can be from any base frequency
 	HD.get_frequencies_from_vector(HD::Ratio.from_s("3/2 4/3"), 330) # => NArray.float(2): [ 495.0, 440.0 ] 
 	
+## Included functionality
 	# Finally, HD::Ratio objects are Comparable and Enumerable
 	HD.r(3,2) > HD.r(4,3) # => true
 	HD.r(3,2) < HD.r(4,3) # => false
 	HD.r(3,2) <=> HD.r(4,3) # => 1
 	HD.r(3,2).each {|x| print "#{x}"} # => nil (prints "32")
 	HD.r(3,2).map {|x| x * 2.0} # => HD::Ratio.int(2): [ 6, 4 ]
-	
 	# And they also respond to basic arithmetic
 	HD.r(3,2) - HD.r(4,3) # => HD::Ratio.int(2): [ 1, 6 ] 
 	HD.r(3,2) * HD.r(4,3) # => HD::Ratio.int(2): [ 2, 1 ]
