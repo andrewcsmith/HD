@@ -5,9 +5,9 @@ module MM
 	# Performs a gradient descent search using one of the morphological metrics in MM
 	# This is a search in 2-dimensional Euclidean space
 	class MetricSearch
-    attr_accessor :path
+		attr_accessor :path
 		
-    def initialize opts = {}
+		def initialize opts = {}
       # The following options should be common to all searches
 			@start_vector				= opts[:start_vector]			|| (raise ArgumentError, "opts[:start_vector] required")
 			@debug_level				= opts[:debug_level]			|| 1
