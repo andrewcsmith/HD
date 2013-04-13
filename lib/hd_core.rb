@@ -56,7 +56,7 @@ module HD
   # Options:
   # 
   # [+:prime_weights+]  How much each "city block" is weighted in the particular metric space.
-  # [+:pc_only+]        A convenient way of setting the weighting of prime 2 to 1
+  # [+:pc_only+]        If true, octave transpositions are ignored (weight of prime 2 set to 1)
   # [+:tuneable_file+]  Location of a file with the list of tuneable intervals
   # 
   class HDConfig
