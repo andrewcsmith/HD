@@ -2,7 +2,6 @@
 # OLMSearch < MM::MetricSearch
 
 module MM
-	
 	# Performs a gradient descent search using one of the morphological metrics in MM
 	# This is a search in 2-dimensional Euclidean space
 	class MetricSearch
