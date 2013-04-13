@@ -69,8 +69,8 @@ module MM
 	    tuneable_data 
 	  end
 		# Cost function for this method
-		def get_cost(current_coordinates, goal_vector)
-			NMath.sqrt(((current_coordinates - goal_vector) ** 2).sum)
+		def get_cost current_coordinates
+			NMath.sqrt(((current_coordinates - @goal_vector) ** 2).sum)
 		end
 		# cost_vector is an NArray where each 
 		def get_candidate_list
@@ -84,7 +84,7 @@ module MM
 		
 		def prepare_search
 			super
-			@current_cost = get_cost(@get_coords.(@current_point, @start_vector), @goal_vector)
+			@current_cost = get_cost(@get_coords.(@current_point, @start_vector))
 			@best_cost_so_far = @current_cost
 		end
 		

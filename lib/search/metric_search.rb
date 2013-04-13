@@ -67,7 +67,7 @@ module MM
 									handle_range_error(er) ? retry : (raise er)
 								end
 								# Find the cost of the prospective point
-								prospective_cost = get_cost(current_coordinates, @goal_vector)
+								prospective_cost = get_cost current_coordinates
 								if prospective_cost < @current_cost
 									@current_cost = prospective_cost
 								else
@@ -107,15 +107,15 @@ module MM
 
 			# These will used the overriden get_cost methods
 			begin
-				@current_cost = get_cost
+				@current_cost = get_cost @current_point
 				@best_cost_so_far = @current_cost
-			rescue ArgumentError => e
-				# If this is called, then it is because the subclass overrode get_cost to use multiple arguments
+			rescue
+				# If this is called, then the @current_cost is not set
 			end
 		end
 		
 		# Finds the cost of a given possible point
-		def get_cost
+		def get_cost candidate
 			# Null for the dummy class
 			raise "Must define :get_cost in subclass of MM::MetricSearch"
 		end
@@ -157,7 +157,7 @@ module MM
 			case 
 			when @debug_level > 0
 				puts "\nSuccess at: \t#{@current_point.to_a}"
-				puts "Distance: \t#{get_cost(@get_coords.(@current_point), 0)}"
+				puts "Distance: \t#{get_cost @get_coords.(@current_point)}"
 				puts "Cost: \t\t#{@current_cost}"
 			end
 		end
@@ -165,7 +165,7 @@ module MM
 		def jump_back
 			@banned_points[@path[-1].hash] = @path.pop
 			@current_point = @path[-1] || (@path << @start_vector)[-1]
-			@current_cost = get_cost(@get_coords.(@current_point, @start_vector), @goal_vector)
+			@current_cost = get_cost @get_coords.(@current_point, @start_vector)
 			@banned_points.delete @start_vector.hash
 			if @debug_level > 1
 				puts "banning #{@banned_points[-1].to_a}"
@@ -188,7 +188,7 @@ module MM
 			if @current_cost > @epsilon
 				@data[:failed] = true
 				@current_point = @best_point_so_far
-				@current_cost = get_cost(@get_coords.(@current_point, @start_vector), @goal_vector)
+				@current_cost = get_cost @get_coords.(@current_point, @start_vector)
 			end
 		end
 	end

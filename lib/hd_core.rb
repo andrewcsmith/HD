@@ -323,6 +323,8 @@ module HD
         return (self[0] == r[0] && self[1] == r[1])
       elsif r.is_a? Fixnum
         return (self.to_f == r)
+			elsif r.is_a? ::NArray
+				return (self.shape == r.shape && self[0] == r[0] && self[1] == r[1])
       else
         raise TypeError.new("Tried to compare a #{r.class} to an HD::Ratio")
       end
