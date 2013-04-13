@@ -5,7 +5,7 @@ require '../lib/search/olm_search.rb'
 
 class OLMSearchTest < Test::Unit::TestCase	
 	def test_search
-		# Within the search algorithm provided, there is an optimal search result
+		# Within the search algorithm provided, there is an optimal first search result
 		
 	  hd_config = HD::HDConfig.new
 	  hd_config.prime_weights = [2.0,3.0,5.0,7.0,11.0]
