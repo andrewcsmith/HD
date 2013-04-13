@@ -376,7 +376,6 @@ module HD
         warn "Weights and factors are not the same size!" 
         puts "Factors size: #{factors.size}, Weights size: #{weights.size}"
       end
-      
       # If the Ratio in question contains a prime number factor whose weight
       # has been set to 0, then it is outside of the harmonic space, and its
       # distance is Infinity. To say that a certain prime factor "doesn't
