@@ -36,34 +36,50 @@ module MM
 		# Cost function for a candidate. This is where the magic happens.
 		def get_cost candidate
 			# Convert the candidate into a string of ratios to call it with our Morphological Metric
-			ratio_vector = NArray.int(2, candidate.shape[-1])
-			candidate.shape[-1].times do |i|
-				ratio_vector[true, i] = parameters_to_ratio(candidate[true, true, i])
-			end
-			@metric.call(ratio_vector, @start_vector)
+			ratio_vector = parameter_vector_to_ratio_vector candidate
+			start_vector = parameter_vector_to_ratio_vector @start_vector
+			# Judge these based on their distance from the goal vector
+			(@metric.call(ratio_vector, start_vector) - @goal_vector).abs
 		end
 		
 		# Gets a list of adjacent points
 		# In this case it finds every possible partial of a given slide position
 		def get_candidate_list
 			point = @current_point.dup
-			# For now, we assume that a "point" is just a single 4-voice chord
-			candidate_list = NArray.int(2, 2, 4, 16)
-			# Iterate over each voice
-			candidate_list.shape[2].times do |j|
-				candidate_list[0, 1, j, true] = NArray.int(16).indgen(1)
-				candidate_list[1, 1, j, true] = 1
-				# Iterate over each ratio
-				candidate_list.shape[0].times do |i|
-					candidate_list[i, 0, j, true] = point[i, 0, j]
+			# Load it up with the possible permutations
+			# old vector, which contained 65,536 permutations
+			# harmonic_vector = (1..16).to_a.repeated_permutation(4)
+			harmonic_vector = [-1, 0, 1].repeated_permutation(4)
+			
+			candidate_list = NArray.int(2, 2, 4, harmonic_vector.size)
+			# We want to be able to sort and reject candidates
+			# Note that this also works with nested loops, and it always iterates over the outermost dimension
+			def candidate_list.each
+				true_args = Array.new(self.dim-1, true)
+				self.shape[-1].times do |i|
+					yield self[*true_args, i]
 				end
 			end
-			candidate_list
+			# Extending Enumerable so that we can use reject and sort and all the goodies
+			candidate_list.extend Enumerable
+			# Assign the point to every entry
+			candidate_list[true, true, true, true] = point.newdim(3)
+			# We want all adjacent ratios
+			candidate_list[0, 1, true, true] += NArray.to_na(harmonic_vector.to_a)
+			NArray.to_na(candidate_list.reject {|x| !(x[0, 1, true].all? {|y| y > 0})})
+			# candidate_list
 		end
 		
-		# Select a candidate based on best-first
+		# Select a candidate based on best-first, offset by an index
 		def get_candidate(candidate_list, index)
-			candidate_list.sort {|candidate| get_cost candidate}[index]
+			# We want to return the first 3 dimensions of the item at a certain index
+			candidate_list.sort do |c| 
+				# Crazy hack, but required because we only want to override the #each method for the one object
+				empty = NArray.int(*c.shape)
+				true_array = *Array.new(empty.dim, true)
+				empty[*true_array] = c[*true_array]
+				get_cost empty
+			end[true, true, true, index]
 		end
 		
 		# ================ #

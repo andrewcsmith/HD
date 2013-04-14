@@ -1,5 +1,5 @@
-require '../hd-mm.rb'
 require 'test/unit'
+require_relative '../hd-mm.rb'
 
 class MetricNestingTest < Test::Unit::TestCase
 	def setup
@@ -27,7 +27,7 @@ class MetricNestingTest < Test::Unit::TestCase
 		# Next, create the OCM config using the UCM as the intra_delta (all else is default)
 		dist_ocm_config = MM::DistConfig.new(:scale => :none, :intra_delta => dist_ucm)
 		
-		# Assert that every one of the elements is correct
+		# Template to assert that every one of the elements is correct
 		assert_element = ->(result, vector, location) do
 			assert_in_delta(result, MM.dist_ucm(vector[true,true,location[0]], vector[true,true,location[1]], dist_ucm_config), 0.001)
 		end
@@ -47,6 +47,3 @@ class MetricNestingTest < Test::Unit::TestCase
 	# 	# Work these out by hand
 	# end
 end
-
-# TODO: The ordered_2_combinations needs to be able to be recursive if this is going to work.
-# This might already work. That's why we need to test, and work it out by hand.

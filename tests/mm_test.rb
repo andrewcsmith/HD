@@ -1,5 +1,5 @@
-require '../hd-mm.rb'
 require 'test/unit'
+require_relative '../hd-mm.rb'
 
 # TODO: Work all of these difference distances out by hand, to make sure that it's all correct. Right now, I'm just asserting that these things I've done today will stay the same.
 
