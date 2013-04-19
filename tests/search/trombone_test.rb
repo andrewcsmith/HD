@@ -7,10 +7,11 @@ class TromboneTest < Test::Unit::TestCase
 	def setup
 		start_vector = NArray[[[4, 9], [1, 1]], [[4, 9], [1, 1]], [[4, 9], [1, 1]], [[4, 9], [1, 1]]]
 		# start_vector = NArray[[[4, 9], [1, 1]], [[5, 9], [1, 1]], [[7, 9], [1, 1]], [[1, 1], [1, 1]]]
-		goal_vector = 0.1
+		goal_vector = 3.5
+    epsilon = 0.05
 		metric = MM.ucm
 		# For metric, we call 
-		@opts = {:start_vector => start_vector, :goal_vector => goal_vector, :metric => metric}
+		@opts = {:start_vector => start_vector, :epsilon => epsilon, :goal_vector => goal_vector, :metric => metric}
 	end
 	
 	def test_trombone_search_should_require_start_vector_narray
@@ -61,6 +62,14 @@ class TromboneTest < Test::Unit::TestCase
 		trombone_search.send(:prepare_search)
 		list = trombone_search.send(:get_candidate_list)
 		assert(list.respond_to?(:sort))
+		puts list.sort.to_a.to_s
+	end
+	
+	def test_candidate_list_should_have_enumerable_cycle_method
+    trombone_search = MM::TromboneSearch.new(@opts)
+    trombone_search.send(:prepare_search)
+    list = trombone_search.send(:get_candidate_list)
+    assert(list.respond_to?(:cycle))
 	end
 	
 	# This will have to change if the definition of "adjacent point" changes
@@ -121,10 +130,28 @@ class TromboneTest < Test::Unit::TestCase
 		trombone_search = MM::TromboneSearch.new(@opts)
 		trombone_search.send(:prepare_search)
 		# Find the best candidate
-		puts "Getting a candidate..."
-		candidate = trombone_search.send(:get_candidate, trombone_search.send(:get_candidate_list), 0)
-		puts "Candidate got."
+		list = trombone_search.send(:get_candidate_list)
+    # puts list.to_a.to_s
+		candidate = trombone_search.send(:get_candidate, list, 0)
 		assert(candidate)
 		assert_equal([2,2,4], candidate.shape)
+    # puts candidate.to_a.to_s
+	end
+	
+	def test_search_should_find_a_point
+		# Instantiate a DistConfig that holds the proper intra_delta
+		config = MM::DistConfig.new :scale => :none, :intra_delta => MM.get_harmonic_distance_delta(HD::HDConfig.new), :inter_delta => MM::DELTA_FUNCTIONS[:abs_diff]
+		@opts[:metric] = ->(a, b) { MM.dist_ucm(a, b, config) }
+		trombone_search = MM::TromboneSearch.new(@opts)
+		assert_nothing_raised do
+			begin
+				results = trombone_search.search
+        puts "#{results[1].inspect}"
+			rescue Exception => e
+				puts e.message
+				puts e.backtrace.join("\n")
+				raise e
+			end
+		end
 	end
 end

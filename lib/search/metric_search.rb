@@ -26,6 +26,9 @@ module MM
 					begin # RuntimeError block
 						# anything that needs to be done at the start of each iteration
 						prepare_each_run
+						if @banned_points.has_key?(path[-1]) && path.size == 1
+							throw :success
+						end
 						# any log messages that are printed at the start of each iteration
 						debug_each_iteration iter
 						catch :keep_going do
@@ -47,7 +50,7 @@ module MM
 											throw :jump_back
 										end
 										# Get the index of the movement that is at the current index level
-										get_candidate = get_candidate(candidate_list, @interval_index)
+										candidate = get_candidate(candidate_list, @interval_index)
 									end
 									# If the point is banned, jump back, otherwise add it to the path
 									@banned_points.has_key?(candidate.hash) ? throw(:jump_back) : (@path << candidate)
@@ -62,12 +65,13 @@ module MM
 								end
 								# Find coordinates of the current point
 								begin
-									current_coordinates = @get_coords.(@path[-1], @start_vector)
+									# Find the cost of the prospective point
+									prospective_cost = get_prospective_cost @path[-1]
 								rescue RangeError => er
+									# If handle_range_error has not been defined in a subclass, any call will just
+									# re-raise the exception
 									handle_range_error(er) ? retry : (raise er)
 								end
-								# Find the cost of the prospective point
-								prospective_cost = get_cost current_coordinates
 								if prospective_cost < @current_cost
 									@current_cost = prospective_cost
 								else
@@ -120,6 +124,10 @@ module MM
 			raise "Must define :get_cost in subclass of MM::MetricSearch"
 		end
 		
+		def get_prospective_cost candidate
+			get_cost candidate
+		end
+		
 		def get_candidate_list
 			# Null for the dummy class
 			# Must define in subclass
@@ -140,6 +148,7 @@ module MM
 		
 		def handle_range_error er
 			# Dummy method
+			false
 		end
 		
 		def debug_each_iteration iter
@@ -157,7 +166,7 @@ module MM
 			case 
 			when @debug_level > 0
 				puts "\nSuccess at: \t#{@current_point.to_a}"
-				puts "Distance: \t#{get_cost @get_coords.(@current_point)}"
+				puts "Distance: \t#{get_cost @current_point}"
 				puts "Cost: \t\t#{@current_cost}"
 			end
 		end
@@ -165,7 +174,7 @@ module MM
 		def jump_back
 			@banned_points[@path[-1].hash] = @path.pop
 			@current_point = @path[-1] || (@path << @start_vector)[-1]
-			@current_cost = get_cost @get_coords.(@current_point, @start_vector)
+			@current_cost = get_cost @current_point
 			@banned_points.delete @start_vector.hash
 			if @debug_level > 1
 				puts "banning #{@banned_points[-1].to_a}"
@@ -188,7 +197,7 @@ module MM
 			if @current_cost > @epsilon
 				@data[:failed] = true
 				@current_point = @best_point_so_far
-				@current_cost = get_cost @get_coords.(@current_point, @start_vector)
+				# @current_cost = get_cost @get_coords.(@current_point, @start_vector)
 			end
 		end
 	end

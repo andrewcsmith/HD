@@ -49,38 +49,73 @@ module MM
 			# Load it up with the possible permutations
 			# old vector, which contained 65,536 permutations
 			# harmonic_vector = (1..16).to_a.repeated_permutation(4)
+			# the new format looks for all permutations that are a single
+			# adjacent harmonic
 			harmonic_vector = [-1, 0, 1].repeated_permutation(4)
-			
 			candidate_list = NArray.int(2, 2, 4, harmonic_vector.size)
-			# We want to be able to sort and reject candidates
-			# Note that this also works with nested loops, and it always iterates over the outermost dimension
-			def candidate_list.each
-				true_args = Array.new(self.dim-1, true)
-				self.shape[-1].times do |i|
-					yield self[*true_args, i]
+      # Open up the Eigenclass to add a few Enumerator methods
+			class << candidate_list
+        # We want to be able to sort and reject candidates. Note that this also works
+        # with nested loops, and it always iterates over the outermost dimension
+        def each
+					true_args = Array.new(self.dim-1, true)
+					self.shape[-1].times do |i|
+						yield self[*true_args, i]
+					end
 				end
-			end
-			# Extending Enumerable so that we can use reject and sort and all the goodies
-			candidate_list.extend Enumerable
-			# Assign the point to every entry
+        # Including Enumerable so that we can use reject and all those goodies
+        include Enumerable
+      end
+      # Assign the point, adding the final dimension as a dummy dimension so that it
+      # maps properly      
 			candidate_list[true, true, true, true] = point.newdim(3)
 			# We want all adjacent ratios
 			candidate_list[0, 1, true, true] += NArray.to_na(harmonic_vector.to_a)
-			NArray.to_na(candidate_list.reject {|x| !(x[0, 1, true].all? {|y| y > 0})})
-			# candidate_list
+      # This creates a new, blank-slate object without the Enumerable methods
+			candidate_list = NArray.to_na(candidate_list.reject {|x| !(x[0, 1, true].all? {|y| y > 0})})
+      # Re-add these methods and include the Enumerable module
+      # TODO: GET RID OF THIS UGLY HACK!
+			class << candidate_list
+        # We want to be able to sort and reject candidates. Note that this also works
+        # with nested loops, and it always iterates over the outermost dimension
+        def each
+					true_args = Array.new(self.dim-1, true)
+					self.shape[-1].times do |i|
+						yield self[*true_args, i]
+					end
+				end
+        # Including Enumerable so that we can use reject and all those goodies
+        include Enumerable
+      end
+      candidate_list
 		end
 		
 		# Select a candidate based on best-first, offset by an index
 		def get_candidate(candidate_list, index)
-			# We want to return the first 3 dimensions of the item at a certain index
-			candidate_list.sort do |c| 
-				# Crazy hack, but required because we only want to override the #each method for the one object
+      # puts "\nChoosing point at index #{index}, from #{candidate_list.inspect}"
+			candidate = candidate_list.sort do |c|
+				# Crazy hack, but required because we only want to override the #each method for
+				# the one object. Without creating a new NArray and filling it, all NArrays
+				# created as parts of candidate_list would retain the #each method of the master
+				# object        
 				empty = NArray.int(*c.shape)
 				true_array = *Array.new(empty.dim, true)
 				empty[*true_array] = c[*true_array]
 				get_cost empty
-			end[true, true, true, index]
+			end[index] 
+      puts "\nCandidate: #{candidate.inspect}\nDistance: #{get_cost candidate}"
+      candidate
+      # NOTE: Because #sort (from Enumerable) returns an Array, we only need to ask
+			# for the single-digit index, without the whole array of true args.            
 		end
+    
+    # ================ #
+    # DEBUG  FUNCTIONS #
+    # ================ #
+    
+    def debug_final_report
+      super
+    end
 		
 		# ================ #
 		# HELPER FUNCTIONS #

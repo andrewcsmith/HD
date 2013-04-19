@@ -70,7 +70,14 @@ module MM
 	  end
 		# Cost function for this method
 		def get_cost current_coordinates
+			if current_coordinates.is_a?(NArray) && current_coordinates.dim > 1
+				get_cost @get_coords.(current_coordinates, @start_vector)
+			end
 			NMath.sqrt(((current_coordinates - @goal_vector) ** 2).sum)
+		end
+		def get_prospective_cost candidate
+			current_coordinates = @get_coords.(@path[-1], @start_vector)
+			get_cost current_coordinates
 		end
 		# cost_vector is an NArray where each 
 		def get_candidate_list
