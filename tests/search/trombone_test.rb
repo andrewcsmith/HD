@@ -62,23 +62,22 @@ class TromboneTest < Test::Unit::TestCase
 		trombone_search.send(:prepare_search)
 		list = trombone_search.send(:get_candidate_list)
 		assert(list.respond_to?(:sort))
-		puts list.sort.to_a.to_s
+    # puts list.sort.to_a.to_s
 	end
 	
 	def test_candidate_list_should_have_enumerable_cycle_method
     trombone_search = MM::TromboneSearch.new(@opts)
     trombone_search.send(:prepare_search)
     list = trombone_search.send(:get_candidate_list)
-    assert(list.respond_to?(:cycle))
+    assert(list.respond_to?(:cycle), "#{list.inspect}")
 	end
 	
 	# This will have to change if the definition of "adjacent point" changes
-	def test_candidate_list_should_be_shape_2_2_4_n
+	def test_candidate_list_should_be_array_of_narrays_shape_2_2_4
 		trombone_search = MM::TromboneSearch.new(@opts)
 		trombone_search.send(:prepare_search)
-		shape = trombone_search.send(:get_candidate_list).shape
-		assert_equal([2, 2, 4], shape[0..2], ":get_candidate_list was shape #{shape}")
-		assert_equal(4, shape.size, ":get_candidate_list_returned shape of size #{shape.size}")
+		list = trombone_search.send(:get_candidate_list)
+    list.all? {|x| assert_equal([2, 2, 4], x.shape, ":get_candidate_list was the wrong shape") }
 	end
 	
 	def test_trombone_search_parameters_to_ratio_should_require_narray_of_shape_2_2
@@ -142,6 +141,8 @@ class TromboneTest < Test::Unit::TestCase
 		# Instantiate a DistConfig that holds the proper intra_delta
 		config = MM::DistConfig.new :scale => :none, :intra_delta => MM.get_harmonic_distance_delta(HD::HDConfig.new), :inter_delta => MM::DELTA_FUNCTIONS[:abs_diff]
 		@opts[:metric] = ->(a, b) { MM.dist_ucm(a, b, config) }
+    # @opts[:goal_vector] = 0.5
+    @opts[:debug_level] = 0
 		trombone_search = MM::TromboneSearch.new(@opts)
 		assert_nothing_raised do
 			begin
@@ -154,4 +155,12 @@ class TromboneTest < Test::Unit::TestCase
 			end
 		end
 	end
+
+  def test_should_keep_a_hash_of_point_costs
+		# Instantiate a DistConfig that holds the proper intra_delta
+		config = MM::DistConfig.new(:scale => :none, :intra_delta => MM.get_harmonic_distance_delta(HD::HDConfig.new), :inter_delta => MM::DELTA_FUNCTIONS[:abs_diff])
+		@opts[:metric] = ->(a, b) { MM.dist_ucm(a, b, config) }
+		trombone_search = MM::TromboneSearch.new(@opts)
+		trombone_search.send(:prepare_search)
+  end
 end

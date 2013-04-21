@@ -37,6 +37,9 @@ module MM
 								candidate_list = get_candidate_list
 								begin # IndexError block
 									# if we've run out of all possible points, step back and keep trying
+                  # NOTE: This only works when candidate_list#size is the largest dimension
+                  # i.e., for a normal Array of NArrays. For NArray, #size gives the total
+                  # number of elements.
 									@interval_index >= candidate_list.size ? throw(:jump_back) : false
 									# load up the candidate from our cost_vector
 									candidate = get_candidate(candidate_list, @interval_index)
@@ -59,7 +62,7 @@ module MM
 								rescue IndexError => er
 									puts "\nIndexError: #{er.message}"
 									print er.backtrace.join("\n")
-									initial_run = true
+									@initial_run = true
 									# Rescue and print the error, then jump back
 									throw :jump_back
 								end
@@ -83,7 +86,7 @@ module MM
 									prepare_result
 									throw :success
 								else # Otherwise, advance to the next iteration without jumping back
-									initial_run = true
+									@initial_run = true
 									throw :keep_going
 								end
 							end # catch :jump_back
