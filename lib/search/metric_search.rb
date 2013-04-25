@@ -43,8 +43,9 @@ module MM
 									@interval_index >= candidate_list.size ? throw(:jump_back) : false
 									# load up the candidate from our cost_vector
 									candidate = get_candidate(candidate_list, @interval_index)
-									# skip all candidates that are banned or already in the path
-									while (@banned_points.has_key? candidate.hash) || (@path.include? candidate)
+                  prospective_cost = @current_cost
+									# skip all candidates that are banned or already in the path or don't get us any closer
+									while (@banned_points.has_key? candidate.hash) || (@path.include? candidate) || (prospective_cost >= @current_cost)
 										@interval_index += 1
 										# If we've exhausted all possible intervals, jump back
 										if @interval_index >= candidate_list.size
@@ -52,11 +53,12 @@ module MM
 											@initial_run = true
 											throw :jump_back
 										end
-										# Get the index of the movement that is at the current index level
+										# Get the movement # that is at the current index
 										candidate = get_candidate(candidate_list, @interval_index)
+                    prospective_cost = get_prospective_cost candidate
 									end
-									# If the point is banned, jump back, otherwise add it to the path
-									@banned_points.has_key?(candidate.hash) ? throw(:jump_back) : (@path << candidate)
+                  # Add it to the path!
+                  @path << candidate
 								# When @interval_index gets too big, we may have an IndexError
 								# This should be avoided by the first line of the IndexError block
 								rescue IndexError => er
@@ -65,20 +67,10 @@ module MM
 									@initial_run = true
 									# Rescue and print the error, then jump back
 									throw :jump_back
-								end
-								# Find coordinates of the current point
-								begin
-									# Find the cost of the prospective point
-									prospective_cost = get_prospective_cost @path[-1]
-								rescue RangeError => er
+                rescue RangeError => er
 									# If handle_range_error has not been defined in a subclass, any call will just
 									# re-raise the exception
-									handle_range_error(er) ? retry : (raise er)
-								end
-								if prospective_cost < @current_cost
-									@current_cost = prospective_cost
-								else
-									throw :jump_back
+                  handle_range_error(er) ? retry : (raise er)
 								end
 								# If the current cost is less than the goal, success!
 								if @current_cost < @epsilon
@@ -180,7 +172,8 @@ module MM
 			@current_cost = get_cost @current_point
 			@banned_points.delete @start_vector.hash
 			if @debug_level > 1
-				puts "banning #{@banned_points[-1].to_a}"
+        puts "jumping back!"
+				puts "banning #{@banned_points[-1].inspect}"
 			end
 		end
 		

@@ -19,6 +19,13 @@ module MM
   class TromboneSearch < MetricSearch
     attr_accessor :start_vector, :current_point
     
+    # Range of harmonics for each voice
+    # NArray.int(2, 2, 4):
+    # dim-0: harmonic expressed as a ratio
+    # dim-1: lower & upper range
+    # dim-2: each of the 4 voices
+    @@range = NArray[[[1, 1], [8, 1]], [[2, 1], [10, 1]], [[3, 1], [12, 1]], [[4, 1], [16, 1]]]
+        
     def initialize opts = { }
       super opts
       if !@start_vector.is_a? NArray
@@ -68,7 +75,11 @@ module MM
         # harmonic_vector = (1..16).to_a.repeated_permutation(4)
         # the new format looks for all permutations that are a single
         # adjacent harmonic
+        
         harmonic_vector = [-1, 0, 1].repeated_permutation(4)
+        # what if we only want to change one voice per step?
+        # let's try this:
+        # harmonic_vector = [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, -1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
         candidate_list = NArray.int(2, 2, 4, harmonic_vector.size)
         # Assign the point, adding the final dimension as a dummy dimension so that it
         # maps properly      
@@ -77,7 +88,7 @@ module MM
         candidate_list[0, 1, true, true] += NArray.to_na(harmonic_vector.to_a)
         # This creates a new, blank-slate object without the Enumerable methods
         add_enumeration candidate_list
-        candidate_list = candidate_list.reject {|x| !(x[0, 1, true].all? {|y| y > 0})}
+        candidate_list = candidate_list.select {|x| is_in_range? x}
         # The following two lines turn the candidate_list into an Enumerable NArray
         # but I'm not sure if they don't break eveything:
         # candidate_list = NArray.to_na(candidate_list)
@@ -161,6 +172,50 @@ module MM
         # Including Enumerable so that we can use reject and all those goodies
         include Enumerable
       end
+    end
+    
+    def is_in_range? point
+      # Ensure we can Enumerate over this outermost dimension
+      add_enumeration point
+      results = []
+      point.each_with_index do |y, i|
+        # puts "#{y.inspect}"
+        position = HD::Ratio[*y[true, 0]]
+        harmonic = y[0, 1]
+        if harmonic < @@range[0, 0, i]
+          results << false
+        elsif harmonic > @@range[0, 1, i]
+          results << false
+        elsif position < HD::Ratio[9, 16]
+          results << false
+        elsif position > HD::Ratio[1, 1]
+          results << false
+        else
+          results << true
+        end
+      end
+      results.all?
+    end
+    
+    def get_slide_candidates point
+      adjacency_vector = [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, -1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+      adjacent_points = adjacency_vector.map do |v|
+        # puts "Trying #{v.inspect}"
+        adjacent_point = point.dup
+        adjacent_point[0, 1, true] += v
+        add_enumeration adjacent_point
+        # If it's already of range, skip it
+        is_in_range?(adjacent_point) ? true : next
+        adjacent_point[true, 1, true].each_with_index do |a, i|
+          # This should, hopefully, give us the same pitch
+          harmonic_movement = (HD::Ratio[*point[true, 1, i]] / HD::Ratio[*adjacent_point[true, 1, i]])
+          adjacent_point[true, 0, i] = HD::Ratio[*adjacent_point[true, 0, i]] * harmonic_movement
+        end
+        # Check to see if it's in range before returning. If it's not, we go to the next and there's nil
+        is_in_range?(adjacent_point) ? adjacent_point : next
+      end
+      # Remove the nils
+      adjacent_points.select {|p| p}
     end
   end
 end

@@ -5,9 +5,9 @@ require_relative '../../lib/search/trombone_search.rb'
 class TromboneTest < Test::Unit::TestCase
 	
 	def setup
-		start_vector = NArray[[[4, 9], [1, 1]], [[4, 9], [1, 1]], [[4, 9], [1, 1]], [[4, 9], [1, 1]]]
+		start_vector = NArray[[[9, 16], [1, 1]], [[9, 16], [2, 1]], [[9, 16], [3, 1]], [[9, 16], [4, 1]]]
 		# start_vector = NArray[[[4, 9], [1, 1]], [[5, 9], [1, 1]], [[7, 9], [1, 1]], [[1, 1], [1, 1]]]
-		goal_vector = 3.5
+		goal_vector = 0.5
     epsilon = 0.05
 		metric = MM.ucm
 		# For metric, we call 
@@ -147,7 +147,9 @@ class TromboneTest < Test::Unit::TestCase
 		assert_nothing_raised do
 			begin
 				results = trombone_search.search
-        puts "#{results[1].inspect}"
+        puts "#{results[1][:path].inspect}"
+        puts "Cost: #{results[1][:cost].inspect}"
+        puts "Failed: #{results[1][:failed].inspect}"
 			rescue Exception => e
 				puts e.message
 				puts e.backtrace.join("\n")
@@ -155,12 +157,30 @@ class TromboneTest < Test::Unit::TestCase
 			end
 		end
 	end
-
-  def test_should_keep_a_hash_of_point_costs
-		# Instantiate a DistConfig that holds the proper intra_delta
-		config = MM::DistConfig.new(:scale => :none, :intra_delta => MM.get_harmonic_distance_delta(HD::HDConfig.new), :inter_delta => MM::DELTA_FUNCTIONS[:abs_diff])
-		@opts[:metric] = ->(a, b) { MM.dist_ucm(a, b, config) }
-		trombone_search = MM::TromboneSearch.new(@opts)
-		trombone_search.send(:prepare_search)
+  
+  # Should find every candidate that is in-range
+  def test_get_slide_candidates_should_find_all_candidates
+    trombone_search = MM::TromboneSearch.new(@opts)
+    current_point = NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]]]
+    desired_candidates = [NArray[[[9, 16], [2, 1]], [[3, 4], [3, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]]], NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[3, 4], [3, 1]], [[9, 16], [6, 1]]], NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [4, 1]], [[27, 40], [5, 1]]]]
+    received_candidates = trombone_search.send(:get_slide_candidates, current_point)
+    assert_equal(desired_candidates, received_candidates)
+  end
+  
+  # Want to be sure that all candidates result in the same pitch content
+  def test_slide_candidates_should_all_have_the_same_pitch
+    trombone_search = MM::TromboneSearch.new(@opts)
+    current_point = NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]]]
+    candidates = trombone_search.send(:get_slide_candidates, current_point)
+    candidates.each_cons(2) do |c|
+      # Assert that each consective pair is equal in pitch content to the previous
+      assert_equal(trombone_search.send(:parameter_vector_to_ratio_vector, c[0]), trombone_search.send(:parameter_vector_to_ratio_vector, c[1]))
+    end
+  end
+  
+  def test_should_choose_slide_candidate_with_least_effect_on_distance
+    # Choose movement that moves the "chord" of slide positions the smallest
+    # distance from its current position (using UCM, harmonic distance as
+    # intra_delta)
   end
 end
