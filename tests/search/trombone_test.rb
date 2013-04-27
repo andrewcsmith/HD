@@ -7,9 +7,12 @@ class TromboneTest < Test::Unit::TestCase
 	def setup
 		start_vector = NArray[[[9, 16], [1, 1]], [[9, 16], [2, 1]], [[9, 16], [3, 1]], [[9, 16], [4, 1]]]
 		# start_vector = NArray[[[4, 9], [1, 1]], [[5, 9], [1, 1]], [[7, 9], [1, 1]], [[1, 1], [1, 1]]]
-		goal_vector = 0.5
+		goal_vector = 3.5
     epsilon = 0.05
 		metric = MM.ucm
+    # This is the dist_config
+    config = MM::DistConfig.new :scale => :none, :intra_delta => MM.get_harmonic_distance_delta(HD::HDConfig.new), :inter_delta => MM::DELTA_FUNCTIONS[:abs_diff]
+    metric = ->(a, b) { MM.dist_ucm(a, b, config) }
 		# For metric, we call 
 		@opts = {:start_vector => start_vector, :epsilon => epsilon, :goal_vector => goal_vector, :metric => metric}
 	end
@@ -147,9 +150,9 @@ class TromboneTest < Test::Unit::TestCase
 		assert_nothing_raised do
 			begin
 				results = trombone_search.search
-        # puts "#{results[1][:path].inspect}"
-        # puts "Cost: #{results[1][:cost].inspect}"
-        # puts "Failed: #{results[1][:failed].inspect}"
+        puts "#{results[1][:path].inspect}"
+        puts "Cost: #{results[1][:cost].inspect}"
+        puts "Failed: #{results[1][:failed].inspect}"
 			rescue Exception => e
 				puts e.message
 				puts e.backtrace.join("\n")
@@ -183,8 +186,6 @@ class TromboneTest < Test::Unit::TestCase
     # Choose movement that moves the "chord" of slide positions the smallest
     # distance from its current position (using UCM, harmonic distance as
     # intra_delta)
-    config = MM::DistConfig.new :scale => :none, :intra_delta => MM.get_harmonic_distance_delta(HD::HDConfig.new), :inter_delta => MM::DELTA_FUNCTIONS[:abs_diff]
-    @opts[:metric] = ->(a, b) { MM.dist_ucm(a, b, config) }
     @opts[:debug_level] = 0
     trombone_search = MM::TromboneSearch.new(@opts)
     current_point = NArray[[[9, 16], [4, 1]], [[9, 16], [5, 1]], [[9, 16], [6, 1]], [[9, 16], [7, 1]]]
@@ -206,5 +207,20 @@ class TromboneTest < Test::Unit::TestCase
         d >= winner_distance
       end
     end
+  end
+  
+  # We want to override the default "jump back" behavior with a slide position shift
+  def test_jumping_back_should_cause_slide_position_change
+    @opts[:debug_level] = 2
+    @opts[:start_vector] = NArray[[[9, 16], [4, 1]], [[9, 16], [5, 1]], [[9, 16], [6, 1]], [[9, 16], [7, 1]]]
+    trombone_search = MM::TromboneSearch.new(@opts)
+    trombone_search.send(:prepare_search)
+    current_point = trombone_search.instance_variable_get(:@current_point)
+    current_slide = current_point[true, 0, true]
+    trombone_search.send(:jump_back)
+    new_point = trombone_search.instance_variable_get(:@current_point)
+    new_slide = new_point[true, 0, true]
+    # puts "#{current_point.inspect}\n#{new_point.inspect}"
+    assert_not_equal(current_slide, new_slide)
   end
 end

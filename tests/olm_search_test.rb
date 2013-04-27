@@ -1,7 +1,7 @@
 require 'test/unit'
-require '../hd-mm.rb'
-require '../lib/search/metric_search.rb'
-require '../lib/search/olm_search.rb'
+require_relative '../hd-mm.rb'
+require_relative '../lib/search/metric_search.rb'
+require_relative '../lib/search/olm_search.rb'
 
 class OLMSearchTest < Test::Unit::TestCase	
 	def test_search
