@@ -31,8 +31,8 @@ module MM
 						end
 						# any log messages that are printed at the start of each iteration
 						debug_each_iteration iter
-						catch :keep_going do
-							catch :jump_back do
+						going = catch :keep_going do
+							m = catch :jump_back do
 								# cost_vector is a list of all adjacent points with their respective costs
 								candidate_list = get_candidate_list
 								begin # IndexError block
@@ -40,7 +40,7 @@ module MM
                   # NOTE: This only works when candidate_list#size is the largest dimension
                   # i.e., for a normal Array of NArrays. For NArray, #size gives the total
                   # number of elements.
-									@interval_index >= candidate_list.size ? throw(:jump_back) : false
+									@interval_index >= candidate_list.size ? throw(:jump_back, "Interval Index too large ln. 43") : false
 									# load up the candidate from our cost_vector
 									candidate = get_candidate(candidate_list, @interval_index)
                   prospective_cost = @current_cost
@@ -51,7 +51,7 @@ module MM
 										if @interval_index >= candidate_list.size
 											@banned_points[candidate.hash] = 1
 											@initial_run = true
-											throw :jump_back
+											throw :jump_back, "Interval Index #{@interval_index} too large ln 54"
 										end
 										# Get the movement # that is at the current index
 										candidate = get_candidate(candidate_list, @interval_index)
@@ -66,7 +66,7 @@ module MM
 									print er.backtrace.join("\n")
 									@initial_run = true
 									# Rescue and print the error, then jump back
-									throw :jump_back
+									throw :jump_back, "Index error"
                 rescue RangeError => er
 									# If handle_range_error has not been defined in a subclass, any call will just
 									# re-raise the exception
@@ -79,11 +79,18 @@ module MM
 									throw :success
 								else # Otherwise, advance to the next iteration without jumping back
 									@initial_run = true
-									throw :keep_going
+									throw :keep_going, true
 								end
 							end # catch :jump_back
+              if @debug_level > 1
+                puts m
+              end
 							jump_back
 						end # catch :keep_going
+            if going
+              keep_going
+              going = false
+            end
 					rescue RuntimeError => er
 						puts "\n#{er.message}"
 						print er.backtrace.join("\n")
@@ -150,10 +157,10 @@ module MM
 			case 
 			when @debug_level > 1 # Prints out a play-by-play
 				puts "Iteration #{iter}"
-				puts "Now #{@current_cost} away at #{@current_point.to_a}"
+				puts "Now #{@current_cost} away at #{@current_point.inspect}"
 			when @debug_level > 0
 				# Tells us where we are with each large-scale movement
-				print "\t\t\t\t\rIteration #{iter}: #{@current_cost} away at #{@current_point.to_a}"
+				print "\t\t\t\t\rIteration #{iter}: #{@current_cost} away at #{@current_point.inspect}"
 			end
 		end
 		
@@ -176,6 +183,10 @@ module MM
 				puts "banning #{@banned_points[-1].inspect}"
 			end
 		end
+    
+    def keep_going
+      # To be subclassed
+    end
 		
 		def prepare_each_run
 			if @initial_run

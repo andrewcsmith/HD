@@ -42,6 +42,7 @@ module MM
       # We want these to be reset for every search
       @candidate_list_old = true
       @cost_cache = {}
+      @slide_position_index = 0
     end
     
     def prepare_each_run
@@ -119,6 +120,33 @@ module MM
       # for the single-digit index, without the whole array of true args.            
     end
     
+    def jump_back
+      # @banned_points[@path[-1].hash] = @path[-1]
+      @slide_position_index = 0
+      new_slide_positions = @current_point
+      while @banned_points.has_key?(new_slide_positions.hash) || @path.include?(new_slide_positions)
+        new_slide_positions = choose_slide_candidate @slide_position_index
+        @slide_position_index += 1
+      end
+      if new_slide_positions
+        # puts "New Slide Positions: #{new_slide_positions.inspect}"
+        @current_point = new_slide_positions
+        path << @current_point
+        @current_cost = get_cost @current_point
+        # @banned_points.delete @start_vector.hash
+        if @debug_level > 1
+          puts "jumping back!"
+          puts "New slide position is #{current_point.inspect}"
+        end
+      else
+        super
+      end
+    end
+    
+    def keep_going
+      # 
+    end
+    
     # ================ #
     # DEBUG  FUNCTIONS #
     # ================ #
@@ -147,7 +175,7 @@ module MM
         if p.is_a?(Array)
           parameter_vector_to_ratio_vector NArray.to_na(p)
         end
-        raise ArgumentError, "parameter_vector_to_ratio_vector only accepts 3-dimensional NArrays of shape [2, 2, n]\nYou set us a #{p.inspect}"
+        raise ArgumentError, "parameter_vector_to_ratio_vector only accepts 3-dimensional NArrays of shape [2, 2, n]\nYou sent us a #{p.inspect}"
       end
       ratio_vector = NArray.int(2, p.shape[2])
       p.shape[2].times do |i|
