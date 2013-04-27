@@ -5,7 +5,7 @@ require_relative '../hd_core.rb'
 
 module TromboneSerializer
   # Will be included into valid NArrays
-  def to_json(*a)
+  def to_json *a
     case self.dim
     when 2
       slide = HD::Ratio.from_na self[true, 0]
@@ -23,6 +23,14 @@ module TromboneSerializer
       {
         "voices" => voices
       }.to_json(*a)
+    when 4
+      vectors = []
+      self.shape[-1].times do |element|
+        vectors << self[true, true, true, element]
+      end
+      {
+        "vectors" => vectors
+      }.to_json(*a)
     end
   end
   
@@ -36,13 +44,18 @@ module TromboneSerializer
       j = self.old_parse(source, opts)
       if j["slide"] && j["partial"]
         return NArray[NArray.to_na(j["slide"]), NArray.to_na(j["partial"])]
-      end
-      if j["voices"]
+      elsif j["voices"]
         voices = []
         j["voices"].each do |voice|
           voices << parse(voice.to_json, opts)
         end
         return NArray.to_na(voices)
+      elsif j["vectors"]
+        vectors = []
+        j["vectors"].each do |vector|
+          vectors << parse(vector.to_json, opts)
+        end
+        return NArray.to_na(vectors)
       end
       j
     end
