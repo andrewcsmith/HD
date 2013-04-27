@@ -214,8 +214,21 @@ module MM
         # Check to see if it's in range before returning. If it's not, we go to the next and there's nil
         is_in_range?(adjacent_point) ? adjacent_point : next
       end
-      # Remove the nils
+      # Remove the nils and return
       adjacent_points.select {|p| p}
+    end
+    
+    def choose_slide_candidate index=0
+      candidates = get_slide_candidates @current_point
+      current_slide = @current_point[true, 0, true]
+      candidates.sort_by! do |c|
+        # We only want to evaluate on the outermost range
+        slide = c[true, 0, true]
+        m = @metric.call(slide, current_slide)
+        # puts "#{c.inspect}\nDistance: #{m}"
+        m
+      end
+      candidates[index]
     end
   end
 end

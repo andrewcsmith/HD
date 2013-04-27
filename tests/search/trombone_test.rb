@@ -147,9 +147,9 @@ class TromboneTest < Test::Unit::TestCase
 		assert_nothing_raised do
 			begin
 				results = trombone_search.search
-        puts "#{results[1][:path].inspect}"
-        puts "Cost: #{results[1][:cost].inspect}"
-        puts "Failed: #{results[1][:failed].inspect}"
+        # puts "#{results[1][:path].inspect}"
+        # puts "Cost: #{results[1][:cost].inspect}"
+        # puts "Failed: #{results[1][:failed].inspect}"
 			rescue Exception => e
 				puts e.message
 				puts e.backtrace.join("\n")
@@ -164,6 +164,7 @@ class TromboneTest < Test::Unit::TestCase
     current_point = NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]]]
     desired_candidates = [NArray[[[9, 16], [2, 1]], [[3, 4], [3, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]]], NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[3, 4], [3, 1]], [[9, 16], [6, 1]]], NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [4, 1]], [[27, 40], [5, 1]]]]
     received_candidates = trombone_search.send(:get_slide_candidates, current_point)
+    # puts "#{received_candidates.inspect}"
     assert_equal(desired_candidates, received_candidates)
   end
   
@@ -182,5 +183,28 @@ class TromboneTest < Test::Unit::TestCase
     # Choose movement that moves the "chord" of slide positions the smallest
     # distance from its current position (using UCM, harmonic distance as
     # intra_delta)
+    config = MM::DistConfig.new :scale => :none, :intra_delta => MM.get_harmonic_distance_delta(HD::HDConfig.new), :inter_delta => MM::DELTA_FUNCTIONS[:abs_diff]
+    @opts[:metric] = ->(a, b) { MM.dist_ucm(a, b, config) }
+    @opts[:debug_level] = 0
+    trombone_search = MM::TromboneSearch.new(@opts)
+    current_point = NArray[[[9, 16], [4, 1]], [[9, 16], [5, 1]], [[9, 16], [6, 1]], [[9, 16], [7, 1]]]
+    trombone_search.instance_variable_set(:@current_point, current_point)
+    # Assert that the current point has been properly set (as the search will not be prepared)
+    assert_equal(trombone_search.instance_variable_get(:@current_point), current_point)
+    # Get the top candidate
+    candidates = trombone_search.send(:get_slide_candidates, current_point)
+    winner = trombone_search.send(:choose_slide_candidate)
+    winner_slide = winner[true, 0, true]
+    current_slide = current_point[true, 0, true]
+    winner_distance = @opts[:metric].call(winner_slide, current_slide)
+    # puts "winner distance is #{winner_distance}"
+    assert_block do
+      candidates.all? do |c|
+        c_slide = c[true, 0, true]
+        d = @opts[:metric].call(c_slide, current_slide)
+        # puts "other distance is #{d}"
+        d >= winner_distance
+      end
+    end
   end
 end
