@@ -5,7 +5,7 @@ module MM
 	# Performs a gradient descent search using one of the morphological metrics in MM
 	# This is a search in 2-dimensional Euclidean space
 	class MetricSearch
-		attr_accessor :path
+		attr_accessor :path, :goal_vector, :start_vector, :current_point, :debug_level
 		
 		def initialize opts = {}
 			# The following options should be common to all searches
@@ -50,7 +50,6 @@ module MM
 										# If we've exhausted all possible intervals, jump back
 										if @interval_index >= candidate_list.size
 											@banned_points[candidate.hash] = 1
-											@initial_run = true
 											throw :jump_back, "Interval Index #{@interval_index} too large ln 54"
 										end
 										# Get the movement # that is at the current index
@@ -64,7 +63,6 @@ module MM
 								rescue IndexError => er
 									puts "\nIndexError: #{er.message}"
 									print er.backtrace.join("\n")
-									@initial_run = true
 									# Rescue and print the error, then jump back
 									throw :jump_back, "Index error"
                 rescue RangeError => er
@@ -178,6 +176,7 @@ module MM
 			@current_point = @path[-1] || (@path << @start_vector)[-1]
 			@current_cost = get_cost @current_point
 			@banned_points.delete @start_vector.hash
+      @initial_run = true
 			if @debug_level > 1
         puts "jumping back!"
 				puts "banning #{@banned_points[-1].inspect}"

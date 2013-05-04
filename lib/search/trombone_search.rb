@@ -17,7 +17,6 @@
 
 module MM
   class TromboneSearch < MetricSearch
-    attr_accessor :start_vector, :current_point
     
     # Range of harmonics for each voice
     # NArray.int(2, 2, 4):
@@ -123,6 +122,7 @@ module MM
     def jump_back
       # @banned_points[@path[-1].hash] = @path[-1]
       @slide_position_index = 0
+      @initial_run = true
       new_slide_positions = @current_point
       while @banned_points.has_key?(new_slide_positions.hash) || @path.include?(new_slide_positions)
         new_slide_positions = choose_slide_candidate @slide_position_index
@@ -131,6 +131,10 @@ module MM
       if new_slide_positions
         # puts "New Slide Positions: #{new_slide_positions.inspect}"
         @current_point = new_slide_positions
+        if @slide_position_index > 0
+          # If we previously tried to change the slide position and it failed, delete the last one
+          @banned_points[path[-1].hash] = path.pop
+        end
         path << @current_point
         @current_cost = get_cost @current_point
         # @banned_points.delete @start_vector.hash

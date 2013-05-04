@@ -34,6 +34,29 @@ module TromboneSerializer
     end
   end
   
+  def to_ascii_score
+    case self.dim
+    when 2
+    when 3
+    when 4
+      string = ""
+      # Iterate over each instrument
+      self.shape[2].times do |voice|
+        line = ""
+        self.shape[3].times do |element|
+          note = self[true, true, voice, element]
+          note.extend TromboneSerializer
+          # Explicitly call the old parsing method, so we can access it with Hash
+          ratio = JSON.old_parse(note.to_json)["ratio"]
+          line << "#{ratio[0]}/#{ratio[1]}\t"
+        end
+        string << line.chomp("\t") << "\n"
+      end
+      return string.chomp
+    end
+    # return "9/16\t9/8\n9/8\t27/16\n27/16\t9/4\n9/4\t9/4"
+  end
+  
   # Opening the metaclass of JSON in order to redefine class methods
   class << JSON
     alias_method :old_parse, :parse

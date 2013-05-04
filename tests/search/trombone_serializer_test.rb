@@ -7,6 +7,7 @@ require_relative '../../lib/serializer/trombone_serializer.rb'
 PITCH_JSON = DATA.gets.chomp
 VECTOR_JSON = DATA.gets.chomp
 PATH_JSON = DATA.gets.chomp
+PATH_ASCII = DATA.gets(nil).chomp
 
 class TromboneSerializerTest < Test::Unit::TestCase
   def setup
@@ -16,6 +17,8 @@ class TromboneSerializerTest < Test::Unit::TestCase
     @test_pitch_json = PITCH_JSON
     @test_vector_json = VECTOR_JSON
     @test_path_json = PATH_JSON
+    
+    @test_path_ascii = PATH_ASCII
   end
   
   def test_pitch_should_return_serialized_json
@@ -44,9 +47,18 @@ class TromboneSerializerTest < Test::Unit::TestCase
   def test_path_should_parse_serialized_json
     assert_equal(@test_path, JSON.parse(@test_path_json))
   end
+  
+  def test_path_should_return_ascii_score
+    @test_path.extend TromboneSerializer
+	assert_equal(@test_path_ascii, @test_path.to_ascii_score)
+  end
 end
 
 __END__
 {"slide":[9,16],"partial":[1,1],"ratio":[9,16]}
 {"voices":[{"slide":[9,16],"partial":[1,1],"ratio":[9,16]},{"slide":[9,16],"partial":[2,1],"ratio":[9,8]},{"slide":[9,16],"partial":[3,1],"ratio":[27,16]},{"slide":[9,16],"partial":[4,1],"ratio":[9,4]}]}
 {"vectors":[{"voices":[{"slide":[9,16],"partial":[1,1],"ratio":[9,16]},{"slide":[9,16],"partial":[2,1],"ratio":[9,8]},{"slide":[9,16],"partial":[3,1],"ratio":[27,16]},{"slide":[9,16],"partial":[4,1],"ratio":[9,4]}]},{"voices":[{"slide":[9,16],"partial":[2,1],"ratio":[9,8]},{"slide":[9,16],"partial":[3,1],"ratio":[27,16]},{"slide":[9,16],"partial":[4,1],"ratio":[9,4]},{"slide":[9,16],"partial":[4,1],"ratio":[9,4]}]}]}
+9/16	9/8
+9/8	27/16
+27/16	9/4
+9/4	9/4
