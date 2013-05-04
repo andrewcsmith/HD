@@ -48,9 +48,15 @@ class TromboneSerializerTest < Test::Unit::TestCase
     assert_equal(@test_path, JSON.parse(@test_path_json))
   end
   
-  def test_path_should_return_ascii_score
+  def test_should_return_ascii_score_from_narray_path
     @test_path.extend TromboneSerializer
 	assert_equal(@test_path_ascii, @test_path.to_ascii_score)
+  end
+  
+  def test_should_return_ascii_score_from_json_path
+	 path = JSON.parse @test_path_json
+	 path.extend TromboneSerializer
+	 assert_equal(@test_path_ascii, path.to_ascii_score)
   end
 end
 

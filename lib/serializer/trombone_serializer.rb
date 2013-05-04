@@ -40,17 +40,33 @@ module TromboneSerializer
     when 3
     when 4
       string = ""
-      # Iterate over each instrument
+      # Add the index numbers to each
+      self.shape[3].times do |index|
+        string << "#{index}\t"
+      end
+      string.chomp!("\t")
+      string << "\n"
+      
+      # Iterate over each instrument (on its own line)
       self.shape[2].times do |voice|
+        voice = self.shape[2] - voice - 1
         line = ""
         self.shape[3].times do |element|
           note = self[true, true, voice, element]
           note.extend TromboneSerializer
-          # Explicitly call the old parsing method, so we can access it with Hash
+          # call the old parsing method, so we can access it with Hash
           ratio = JSON.old_parse(note.to_json)["ratio"]
           line << "#{ratio[0]}/#{ratio[1]}\t"
         end
-        string << line.chomp("\t") << "\n"
+        line << "\n"
+        self.shape[3].times do |element|
+          note = self[true, true, voice, element]
+          note.extend TromboneSerializer
+          # call the old parsing method, so we can access it with Hash
+          slide = JSON.old_parse(note.to_json)["slide"]
+          line << "#{slide[0]}/#{slide[1]}\t"
+        end
+        string << line.chomp("\t") << "\n\n"
       end
       return string.chomp
     end

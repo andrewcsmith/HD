@@ -174,7 +174,8 @@ class TromboneTest < Test::Unit::TestCase
   # Want to be sure that all candidates result in the same pitch content
   def test_slide_candidates_should_all_have_the_same_pitch
     trombone_search = MM::TromboneSearch.new(@opts)
-    current_point = NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]]]
+    # current_point = NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]]]
+	current_point = NArray[[[9, 16], [1, 1]], [[9, 16], [4, 1]], [[9, 16], [3, 1]], [[9, 16], [5, 1]]]
     candidates = trombone_search.send(:get_slide_candidates, current_point)
     candidates.each_cons(2) do |c|
       # Assert that each consective pair is equal in pitch content to the previous
@@ -188,12 +189,14 @@ class TromboneTest < Test::Unit::TestCase
     # intra_delta)
     @opts[:debug_level] = 0
     trombone_search = MM::TromboneSearch.new(@opts)
+	trombone_search.send(:prepare_search)
     current_point = NArray[[[9, 16], [4, 1]], [[9, 16], [5, 1]], [[9, 16], [6, 1]], [[9, 16], [7, 1]]]
     trombone_search.instance_variable_set(:@current_point, current_point)
     # Assert that the current point has been properly set (as the search will not be prepared)
     assert_equal(trombone_search.instance_variable_get(:@current_point), current_point)
     # Get the top candidate
     candidates = trombone_search.send(:get_slide_candidates, current_point)
+	# puts "#{candidates.inspect}"
     winner = trombone_search.send(:choose_slide_candidate)
     winner_slide = winner[true, 0, true]
     current_slide = current_point[true, 0, true]
@@ -222,5 +225,9 @@ class TromboneTest < Test::Unit::TestCase
     new_slide = new_point[true, 0, true]
     # puts "#{current_point.inspect}\n#{new_point.inspect}"
     assert_not_equal(current_slide, new_slide)
+  end
+  
+  def test_slide_position_change_should_be_same_pitches
+	  
   end
 end

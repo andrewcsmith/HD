@@ -120,30 +120,22 @@ module MM
     end
     
     def jump_back
-      # @banned_points[@path[-1].hash] = @path[-1]
-      @slide_position_index = 0
-      @initial_run = true
-      new_slide_positions = @current_point
-      while @banned_points.has_key?(new_slide_positions.hash) || @path.include?(new_slide_positions)
-        new_slide_positions = choose_slide_candidate @slide_position_index
-        @slide_position_index += 1
-      end
-      if new_slide_positions
-        # puts "New Slide Positions: #{new_slide_positions.inspect}"
+      new_slide_positions = choose_slide_candidate
+      if !new_slide_positions
+  			super
+      else
+        # We want to commit the current point as a "pivot" point
+        path << @current_point
         @current_point = new_slide_positions
-        if @slide_position_index > 0
-          # If we previously tried to change the slide position and it failed, delete the last one
-          @banned_points[path[-1].hash] = path.pop
-        end
+        # Now we commit the point with new slide positions
         path << @current_point
         @current_cost = get_cost @current_point
+        @initial_run = true
         # @banned_points.delete @start_vector.hash
         if @debug_level > 1
           puts "jumping back!"
           puts "New slide position is #{current_point.inspect}"
         end
-      else
-        super
       end
     end
     
@@ -229,8 +221,13 @@ module MM
       results.all?
     end
     
-    def get_slide_candidates point
-      adjacency_vector = [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, -1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+    def is_same_pitch? point, other
+      parameter_vector_to_ratio_vector(point) == parameter_vector_to_ratio_vector(other)
+    end
+    
+    def get_slide_candidates point 
+      # adjacency_vector = [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, -1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+      adjacency_vector = [-1, 0, 1].repeated_permutation(4)
       adjacent_points = adjacency_vector.map do |v|
         # puts "Trying #{v.inspect}"
         adjacent_point = point.dup
@@ -243,6 +240,8 @@ module MM
           harmonic_movement = (HD::Ratio[*point[true, 1, i]] / HD::Ratio[*adjacent_point[true, 1, i]])
           adjacent_point[true, 0, i] = HD::Ratio[*adjacent_point[true, 0, i]] * harmonic_movement
         end
+        # Check to be sure the two pitch vectors are the same
+        is_same_pitch?(adjacent_point, point) ? adjacent_point : next
         # Check to see if it's in range before returning. If it's not, we go to the next and there's nil
         is_in_range?(adjacent_point) ? adjacent_point : next
       end
@@ -250,17 +249,22 @@ module MM
       adjacent_points.select {|p| p}
     end
     
-    def choose_slide_candidate index=0
+    # Refactoring this so that it does not take the index
+    # It will return nil if there is no slide candidate found
+    def choose_slide_candidate
       candidates = get_slide_candidates @current_point
+      candidates.reject! { |c| @banned_points.has_key?(c.hash) || @path.include?(c) }
+      candidates.empty? ? (return nil) : false
+      
       current_slide = @current_point[true, 0, true]
-      candidates.sort_by! do |c|
+      # Sort after rejecting, and choose the top one
+      candidates.sort_by do |c|
         # We only want to evaluate on the outermost range
         slide = c[true, 0, true]
         m = @metric.call(slide, current_slide)
         # puts "#{c.inspect}\nDistance: #{m}"
         m
-      end
-      candidates[index]
+      end[0]
     end
   end
 end
