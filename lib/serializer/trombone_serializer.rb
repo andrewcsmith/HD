@@ -73,6 +73,20 @@ module TromboneSerializer
     # return "9/16\t9/8\n9/8\t27/16\n27/16\t9/4\n9/4\t9/4"
   end
   
+  # Only works for the path right now
+  def get_voice voice=nil
+    path = JSON.old_parse(self.to_json)
+    voices = []
+    path["vectors"][0]["voices"].size.times {voices << []}
+    # puts "#{path.inspect}"
+    path["vectors"].each do |vec|
+      vec["voices"].each_with_index do |voi, i|
+        voices[i] << voi.to_json
+      end
+    end
+    voice ? voices[voice] : voices
+  end
+  
   # Opening the metaclass of JSON in order to redefine class methods
   class << JSON
     alias_method :old_parse, :parse

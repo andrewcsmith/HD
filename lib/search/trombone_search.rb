@@ -23,16 +23,19 @@ module MM
     # dim-0: harmonic expressed as a ratio
     # dim-1: lower & upper range
     # dim-2: each of the 4 voices
-    @@range = NArray[[[1, 1], [8, 1]], [[2, 1], [10, 1]], [[3, 1], [12, 1]], [[4, 1], [16, 1]]]
+    @@partial_range = NArray[[[1, 1], [8, 1]], [[2, 1], [10, 1]], [[3, 1], [12, 1]], [[4, 1], [16, 1]]]
+    @@ratio_range = NArray[[[9, 8], [9, 2]], [[9, 4], [9, 1]], [[27, 8], [27, 2]], [[27, 8], [27, 1]]]
+    
         
     def initialize opts = { }
-      super opts
+      super opts      
       if !@start_vector.is_a? NArray
         raise ArgumentError, ":start_vector must be NArray. You passed a #{@start_vector.class}."
       elsif @start_vector.shape != [2,2,4]
         raise ArgumentError, ":start_vector must be shape [2,2,4]. You passed #{@start_vector.shape.to_a}"
       end
       @metric = opts[:metric] || raise(ArgumentError, "please provide a metric to TromboneSearch")
+      @r = opts[:r]           || nil
       @cost_cache = {}
     end
     
@@ -45,9 +48,7 @@ module MM
     end
     
     def prepare_each_run
-      if @initial_run
-        @candidate_list_old = true
-      end
+      @candidate_list_old = (@initial_run ? true : false)
       super
     end
     
@@ -75,7 +76,6 @@ module MM
         # harmonic_vector = (1..16).to_a.repeated_permutation(4)
         # the new format looks for all permutations that are a single
         # adjacent harmonic
-        
         harmonic_vector = [-1, 0, 1].repeated_permutation(4)
         # what if we only want to change one voice per step?
         # let's try this:
@@ -85,7 +85,11 @@ module MM
         # maps properly      
         candidate_list[true, true, true, true] = point.newdim(3)
         # We want all adjacent ratios
-        candidate_list[0, 1, true, true] += NArray.to_na(harmonic_vector.to_a)
+        if @r
+          candidate_list[0, 1, true, true] += NArray.to_na(harmonic_vector.to_a.shuffle(random: @r))
+        else
+          candidate_list[0, 1, true, true] += NArray.to_na(harmonic_vector.to_a)
+        end
         # This creates a new, blank-slate object without the Enumerable methods
         add_enumeration candidate_list
         candidate_list = candidate_list.select {|x| is_in_range? x}
@@ -93,25 +97,30 @@ module MM
         # but I'm not sure if they don't break eveything:
         # candidate_list = NArray.to_na(candidate_list)
         # add_enumeration candidate_list
-        @candidate_list = candidate_list
+        @candidate_list = candidate_list.sort do |c|
+          empty = NArray.int(*c.shape)
+          true_array = *Array.new(empty.dim, true)
+          empty[*true_array] = c[*true_array]
+          get_cost empty
+        end
       end
-      # return the list
+      # return the list, as a normal Array
       @candidate_list
     end
     
     # Select a candidate based on best-first, offset by an index
     def get_candidate(candidate_list, index)
       # puts "\nChoosing point at index #{index}, from #{candidate_list.inspect}"
-      candidate_list.sort! do |c|
-        # Crazy hack, but required because we only want to override the #each method for
-        # the one object. Without creating a new NArray and filling it, all NArrays
-        # created as parts of candidate_list would retain the #each method of the master
-        # object        
-        empty = NArray.int(*c.shape)
-        true_array = *Array.new(empty.dim, true)
-        empty[*true_array] = c[*true_array]
-        get_cost empty
-      end
+      # candidate_list.sort! do |c|
+      #   # Crazy hack, but required because we only want to override the #each method for
+      #   # the one object. Without creating a new NArray and filling it, all NArrays
+      #   # created as parts of candidate_list would retain the #each method of the master
+      #   # object        
+      #   empty = NArray.int(*c.shape)
+      #   true_array = *Array.new(empty.dim, true)
+      #   empty[*true_array] = c[*true_array]
+      #   get_cost empty
+      # end
       candidate = candidate_list[index]
       # puts "\nCandidate: #{candidate.inspect}\nDistance: #{get_cost candidate}"
       candidate
@@ -206,13 +215,18 @@ module MM
         # puts "#{y.inspect}"
         position = HD::Ratio[*y[true, 0]]
         harmonic = y[0, 1]
-        if harmonic < @@range[0, 0, i]
+        ratio = parameters_to_ratio y
+        if harmonic < @@partial_range[0, 0, i]
           results << false
-        elsif harmonic > @@range[0, 1, i]
+        elsif harmonic > @@partial_range[0, 1, i]
           results << false
         elsif position < HD::Ratio[9, 16]
           results << false
         elsif position > HD::Ratio[1, 1]
+          results << false
+        elsif ratio < HD::Ratio.from_na(@@ratio_range[true, 0, i])
+          results << false
+        elsif ratio >  HD::Ratio.from_na(@@ratio_range[true, 1, i])
           results << false
         else
           results << true
@@ -226,6 +240,7 @@ module MM
     end
     
     def get_slide_candidates point 
+      
       # adjacency_vector = [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, -1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
       adjacency_vector = [-1, 0, 1].repeated_permutation(4)
       adjacent_points = adjacency_vector.map do |v|
@@ -246,7 +261,9 @@ module MM
         is_in_range?(adjacent_point) ? adjacent_point : next
       end
       # Remove the nils and return
-      adjacent_points.select {|p| p}
+      adjacent_points.select! {|p| p}
+      # print " ...searching for a new slide position - found #{adjacent_points.size}"
+      adjacent_points
     end
     
     # Refactoring this so that it does not take the index
@@ -257,11 +274,19 @@ module MM
       candidates.empty? ? (return nil) : false
       
       current_slide = @current_point[true, 0, true]
+      starting_slide = @start_vector[true, 0, true]
       # Sort after rejecting, and choose the top one
       candidates.sort_by do |c|
         # We only want to evaluate on the outermost range
         slide = c[true, 0, true]
-        m = @metric.call(slide, current_slide)
+        
+        # This option makes the slide attempt to find the point as close as possible to the current cost
+        m = @metric.call(slide, starting_slide)
+        m = (@current_cost - (@goal_vector - m)).abs
+        
+        # This option keeps the slide UCM the closest to what it is now
+        # m = @metric.call(slide, current_slide)
+        
         # puts "#{c.inspect}\nDistance: #{m}"
         m
       end[0]

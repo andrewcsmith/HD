@@ -17,7 +17,7 @@ class TromboneSerializerTest < Test::Unit::TestCase
     @test_pitch_json = PITCH_JSON
     @test_vector_json = VECTOR_JSON
     @test_path_json = PATH_JSON
-    
+    # ASCII paths
     @test_path_ascii = PATH_ASCII
   end
   
@@ -57,6 +57,13 @@ class TromboneSerializerTest < Test::Unit::TestCase
 	 path = JSON.parse @test_path_json
 	 path.extend TromboneSerializer
 	 assert_equal(@test_path_ascii, path.to_ascii_score)
+  end
+  
+  def test_should_return_one_voice
+    path = JSON.parse(@test_path_json)
+    path.extend TromboneSerializer
+    voice1 = path.get_voice 0
+    assert_equal(['{"slide":[9,16],"partial":[1,1],"ratio":[9,16]}','{"slide":[9,16],"partial":[2,1],"ratio":[9,8]}'], voice1)
   end
 end
 

@@ -5,8 +5,9 @@ require_relative '../../lib/search/trombone_search.rb'
 class TromboneTest < Test::Unit::TestCase
 	
 	def setup
-		start_vector = NArray[[[9, 16], [1, 1]], [[9, 16], [2, 1]], [[9, 16], [3, 1]], [[9, 16], [4, 1]]]
-		# start_vector = NArray[[[4, 9], [1, 1]], [[5, 9], [1, 1]], [[7, 9], [1, 1]], [[1, 1], [1, 1]]]
+    # start_vector = NArray[[[9, 16], [1, 1]], [[9, 16], [2, 1]], [[9, 16], [3, 1]], [[9, 16], [4, 1]]]
+    # The lowest open strings of the strings
+    start_vector = NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]], [[9, 16], [6, 1]]]
 		goal_vector = 3.5
     epsilon = 0.05
 		metric = MM.ucm
@@ -80,7 +81,8 @@ class TromboneTest < Test::Unit::TestCase
 		trombone_search = MM::TromboneSearch.new(@opts)
 		trombone_search.send(:prepare_search)
 		list = trombone_search.send(:get_candidate_list)
-    list.all? {|x| assert_equal([2, 2, 4], x.shape, ":get_candidate_list was the wrong shape") }
+    assert_not_empty(list)
+    list.each {|x| assert_equal([2, 2, 4], x.shape, ":get_candidate_list was the wrong shape") }
 	end
 	
 	def test_trombone_search_parameters_to_ratio_should_require_narray_of_shape_2_2
@@ -137,7 +139,7 @@ class TromboneTest < Test::Unit::TestCase
 		candidate = trombone_search.send(:get_candidate, list, 0)
 		assert(candidate)
 		assert_equal([2,2,4], candidate.shape)
-    # puts candidate.to_a.to_s
+    # puts candidate.inspect
 	end
 	
 	def test_search_should_find_a_point
@@ -145,7 +147,7 @@ class TromboneTest < Test::Unit::TestCase
 		config = MM::DistConfig.new :scale => :none, :intra_delta => MM.get_harmonic_distance_delta(HD::HDConfig.new), :inter_delta => MM::DELTA_FUNCTIONS[:abs_diff]
 		@opts[:metric] = ->(a, b) { MM.dist_ucm(a, b, config) }
     # @opts[:goal_vector] = 0.5
-    @opts[:debug_level] = 0
+    @opts[:debug_level] = 1
 		trombone_search = MM::TromboneSearch.new(@opts)
 		assert_nothing_raised do
 			begin
@@ -164,7 +166,7 @@ class TromboneTest < Test::Unit::TestCase
   # Should find every candidate that is in-range
   def test_get_slide_candidates_should_find_all_candidates
     trombone_search = MM::TromboneSearch.new(@opts)
-    current_point = NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]]]
+    current_point = NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]], [[9, 16], [6, 1]]]
     desired_candidates = [NArray[[[9, 16], [2, 1]], [[3, 4], [3, 1]], [[9, 16], [4, 1]], [[9, 16], [6, 1]]], NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[3, 4], [3, 1]], [[9, 16], [6, 1]]], NArray[[[9, 16], [2, 1]], [[9, 16], [4, 1]], [[9, 16], [4, 1]], [[27, 40], [5, 1]]]]
     received_candidates = trombone_search.send(:get_slide_candidates, current_point)
     # puts "#{received_candidates.inspect}"

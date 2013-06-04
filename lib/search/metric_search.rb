@@ -58,6 +58,8 @@ module MM
 									end
                   # Add it to the path!
                   @path << candidate
+                  # Assign the current cost
+                  @current_cost = prospective_cost
 								# When @interval_index gets too big, we may have an IndexError
 								# This should be avoided by the first line of the IndexError block
 								rescue IndexError => er
@@ -158,7 +160,7 @@ module MM
 				puts "Now #{@current_cost} away at #{@current_point.inspect}"
 			when @debug_level > 0
 				# Tells us where we are with each large-scale movement
-				print "\t\t\t\t\rIteration #{iter}: #{@current_cost} away at #{@current_point.inspect}"
+        print "\t\t\t\t\rIteration #{iter}: #{@current_cost} away"
 			end
 		end
 		
@@ -166,7 +168,6 @@ module MM
 			case 
 			when @debug_level > 0
 				puts "\nSuccess at: \t#{@current_point.to_a}"
-				puts "Distance: \t#{get_cost @current_point}"
 				puts "Cost: \t\t#{@current_cost}"
 			end
 		end
