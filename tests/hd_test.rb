@@ -1,4 +1,4 @@
-require '../hd.rb'
+require_relative '../lib/hd.rb'
 require 'test/unit'
 
 class HDTest < Test::Unit::TestCase
@@ -18,7 +18,7 @@ class HDTest < Test::Unit::TestCase
   end
   
 	# Tests that the distance of every tuneable interval matches with what we expect
-	File.open("./tuneable_with_distances.txt") do |file|
+	File.open(File.dirname(File.expand_path(__FILE__)) + "/tuneable_with_distances.txt") do |file|
 		file.each do |line|
 			if line =~ /(\d+)\/(\d+)\t([\d\.]+)/
 				interval = NArray[$1.to_f, $2.to_f].to_i

@@ -70,7 +70,7 @@ module HD
     def initialize(options = { })
 			# Assumes that there is a file called "tuneable.txt" in a "data" subdirectory of
 			# the superdirectory of this script
-			default_tuneable_file = File.open(File.dirname(File.expand_path(__FILE__)) + "/../data/tuneable.txt")
+			default_tuneable_file = File.open(File.dirname(File.expand_path(__FILE__)) + "/../../data/tuneable.txt")
       @options = options
       self.prime_weights =	options[:prime_weights]   || PRIMES.dup
       @pc_only =          	options[:pc_only]         || false
