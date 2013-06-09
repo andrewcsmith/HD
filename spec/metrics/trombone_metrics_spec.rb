@@ -1,5 +1,4 @@
 require 'hd/metrics/trombone_metrics.rb'
-require 'json'
 require_relative './helpers.rb'
 
 RSpec.configure do |c|
