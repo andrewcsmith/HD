@@ -1,10 +1,10 @@
-require './hd.rb'
-require '../Morphological-Metrics/mm.rb'
-require './deltas.rb'
-require './get_angle.rb'
-require './mm-angle.rb'
-require './get_tuneable_data.rb'
-require './hd_mm_addons.rb'
+require './hd-mm.rb'
+# require '../Morphological-Metrics/mm.rb'
+# require './lib/deltas.rb'
+# require './lib/get_angle.rb'
+# require './lib/mm-angle.rb'
+# require './lib/get_tuneable_data.rb'
+# require './lib/hd_mm_addons.rb'
 
 module MM
   # OLM search function, on an x/y axis
@@ -250,8 +250,7 @@ begin
   # Creating the angler
   lowest = NArray.int(2, start_vector.shape[1]).fill(1)
   x_bounds = [lowest, HD::Ratio.from_s("1/1 8/1 1/1 8/1 1/1 8/1 1/1 8/1 1/1")]
-  y_bounds = [lowest, require File.dirname(__FILE__) + '/../tests/olm-search_test'
-  HD::Ratio.from_s("1/1 28/5 1/1 28/5 1/1 28/5 1/1 28/5 1/1")]
+  y_bounds = [lowest, HD::Ratio.from_s("1/1 28/5 1/1 28/5 1/1 28/5 1/1 28/5 1/1")]
   x_cfg = MM::DistConfig.new({:scale => :none, :intra_delta => MM.get_ed_intra_delta, :inter_delta => MM::DELTA_FUNCTIONS[:longest_vector_abs_diff], :int_func => MM::INTERVAL_FUNCTIONS[:pairs]})
   y_cfg = MM::DistConfig.new({:scale => :none, :intra_delta => MM.get_harmonic_distance_delta(hd_config), :inter_delta => MM::DELTA_FUNCTIONS[:longest_vector_abs_diff], :int_func => MM::INTERVAL_FUNCTIONS[:pairs]})
   angler = MM::Angle.new(MM.olm, MM.olm, x_bounds, x_cfg, y_bounds, y_cfg)

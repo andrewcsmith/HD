@@ -68,14 +68,17 @@ module MM
 	    end
 	    tuneable_data 
 	  end
+    
 		# Cost function for this method
 		def get_cost(current_coordinates, goal_vector)
 			NMath.sqrt(((current_coordinates - goal_vector) ** 2).sum)
 		end
+    
 		# cost_vector is an NArray where each 
 		def get_cost_vector
 			NMath.sqrt(((@tuneable_data - @goal_vector) ** 2).sum(0))
 		end
+    
 		# Takes care of the RangeError and retries
 		def handle_range_error
 			puts "\nSeem to have a RangeError -- reordering"
@@ -87,6 +90,7 @@ module MM
       puts "#{@path[-1].to_a}"
       true # Error handled
 		end
+    
 		# Makes sure that the current point is satisfactory
 		def prepare_result
 			super
@@ -96,12 +100,14 @@ module MM
 				throw :jump_back
 			end
 		end
+    
 		# Prepare the final data report, specific to OLM tuning
 		def prepare_data
 			super
 			@data[:tuneable_data] = @tuneable_data
-			@data[:@lowest_old] = @lowest_old
+			@data[:lowest_old] = @lowest_old
 		end
+    
 		# Send the final report
 		def debug_final_report
 			super

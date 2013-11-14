@@ -14,11 +14,15 @@ module MM
 			@debug_level				= opts[:debug_level]			|| 1
 			@epsilon						= opts[:epsilon]					|| 0.01
 			@max_iterations			= opts[:max_iterations]		|| 1000
-			@goal_vector				= opts[:goal_vector]			|| (raise ArgumentError, "opts[:goal_vector] required")
+			@goal_vector				= opts[:goal_vector]			# || (raise ArgumentError, "opts[:goal_vector] required")
 			@banned_points			= opts[:banned_points]		|| {}
 		end
 		
 		def search
+      if !@goal_vector
+        raise ArgumentError, "goal_vector is required"
+      end
+      
 			# Only need to do this once per search
 			prepare_search
 			catch :success do
